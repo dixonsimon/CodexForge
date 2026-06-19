@@ -142,3 +142,16 @@ model FileLock {
   @@unique([projectId, filePath])
   @@map("file_locks")
 }
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String?
+  userEmail String?
+  action    String
+  target    String
+  details   String?
+  ipAddress String?
+  createdAt DateTime @default(now())
+
+  @@map("audit_logs")
+}
