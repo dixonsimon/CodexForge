@@ -24,16 +24,16 @@ This document outlines the current feature completion status and lists the pendi
 * **vLLM Inference Integration**: Dedicated `VLLMInferenceClient` service streams tokens and returns active continuous batching engine metrics.
 * **Speculative Decoding Server**: Simulated speculative decoding loop verification yields faster token outputs by running draft 2B parameters checks in parallel.
 * **Synthetic Data & RLCF (Compiler Feedback)**: Self-play generator runs code sandbox validations, captures and repairs errors, and yields DPO chosen/rejected preference files.
-* **Dataset Curation & Pre-training**: Autoregressive Fill-in-the-Middle (FIM) packing is fully operational.
+* **Dataset Curation & Pre-training**: Deduplication using MinHash LSH, copyleft license filtering, and autoregressive Fill-in-the-Middle (FIM) packing are fully operational.
 * **Production-Grade Redis Cluster/Sentinel Integration**: Next.js and NestJS backends now support multi-mode connections (Cluster/Sentinel/Standalone) via dynamic environment parsing.
 * **Remote AWS Firecracker Sandbox Pool**: Execution daemon connector enables forwarding sandboxed jobs to a remote AWS Firecracker VM cluster with automatic local backup fallbacks.
 * **NVIDIA Multi-Instance GPU (MIG) Partitioning Configuration**: Virtualizes physical GPU clusters into mixed slicing profiles (`1g.10gb` and `2g.20gb`) using custom configurations for the GPU Operator.
 * **Karpenter Node Autoscaling Policies**: Automates provisioning of AWS EC2 GPU nodes using spot fallbacks and custom Bottlerocket block device definitions.
-* **Inference Model Volume Caching**: Implements NVMe model caching via pre-warming DaemonSets, shrinking container boot delays.
-* **Advanced Codebase AST Deep Parsing**: Extracts scoped class, function, call, and import blocks across JavaScript, TypeScript, and Python workspaces.
-* **Symbol Dependency Graph Embeddings**: Constructs directed code dependency pathways mapped in vector metadata payloads.
+* **Inference Model Volume Caching**: Implements local NVMe hostPath model caching via pre-warming DaemonSets, shrinking container boot delays to under 20 seconds.
+* **Advanced Codebase AST Deep Parsing**: Utilizes structural parser logic to extract scoped class, function, call, and import blocks across JavaScript, TypeScript, and Python workspaces.
+* **Symbol Dependency Graph Embeddings**: Constructs directed code dependency pathways mapped in vector metadata payloads to augment language context with semantic relationships.
 * **Lexical-Semantic Hybrid Search**: Blends vector similarities with BM25 term frequency scores via Reciprocal Rank Fusion (RRF).
-* **Incremental Workspace Indexing**: Exposes a `/sync-file` endpoint supporting dynamic, file-level updates to the vector database.
+* **Incremental Workspace Indexing**: Exposes a `/sync-file` endpoint supporting dynamic, file-level updates to the vector database without full repository rebuilds.
 * **Managed SaaS Option B Architecture**: Configured live client adapters to connect with serverless infrastructure (Supabase, Upstash Redis, Qdrant Cloud) paired with active offline local failovers.
 * **Sandbox Security & Ephemeral Isolation**: Orchestrates AWS Firecracker guest VM life-cycles via raw REST commands, compiled eBPF traffic control filters lock down outbound registry paths, and LUKS cryptsetup scripts encrypt transient RAM block devices.
 * **Enterprise SSO & Audit Ledgers**: Integrates OpenID Connect / SAML redirection controllers to register identity logins, evaluates strict multi-tenant RBAC policies (`SECOPS`, `LEAD_DEVELOPER`, `VIEWER`), and registers log events in database audit tables.
