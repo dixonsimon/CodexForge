@@ -28,7 +28,8 @@ export default function DashboardLayout({ children, initialUser }: DashboardLayo
 
   useEffect(() => {
     if (!initialUser) {
-      supabase.auth.getUser().then(({ data: { user: u } }) => {
+      supabase.auth.getUser().then((res: any) => {
+        const u = res?.data?.user;
         if (u) setUser(u);
       });
     } else {
