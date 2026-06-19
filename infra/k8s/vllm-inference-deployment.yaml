@@ -22,7 +22,7 @@ spec:
         command: ["python3", "-m", "vllm.entrypoints.openai.api_server"]
         args:
         - "--model"
-        - "Qwen/Qwen2.5-Coder-7B-Instruct"
+        - "/models/Qwen2.5-Coder-7B-Instruct"
         - "--port"
         - "8000"
         - "--gpu-memory-utilization"
@@ -44,6 +44,9 @@ spec:
         securityContext:
           capabilities:
             add: ["SYS_PTRACE"]
+        volumeMounts:
+        - name: model-cache
+          mountPath: /models
         tolerations:
         - key: "sku"
           operator: "Equal"
@@ -54,6 +57,11 @@ spec:
           effect: "NoSchedule"
         nodeSelector:
           accelerator: nvidia-h100
+      volumes:
+      - name: model-cache
+        hostPath:
+          path: /var/lib/model-cache
+          type: Directory
 ---
 apiVersion: v1
 kind: Service

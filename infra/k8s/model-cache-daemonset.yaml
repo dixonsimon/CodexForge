@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: model-cache-prewarmer
+  namespace: codexforge
+  labels:
+    app: model-cache-prewarmer
+spec:
+  selector:
+    matchLabels:
+      app: model-cache-prewarmer
+  template:
+    metadata:
+      labels:
+        app: model-cache-prewarmer
+    spec:
+      tolerations:
+        - key: "sku"
+          operator: "Equal"
+          value: "gpu"
+          effect: "NoSchedule"
+        - key: "nvidia.com/gpu"
+          operator: "Exists"
+          effect: "NoSchedule"
+      nodeSelector:
+        accelerator: nvidia-h100
+      containers:
+      - name: sync-agent
+        image: alpine:latest
+        command: ["sh", "-c", "echo 'Model cache pre-warming agent active. Idle until new weights are staged.' && sleep infinity"]
+        volumeMounts:
+        - name: cache-volume
+          mountPath: /models
+      initContainers:
+      - name: model-downloader
+        image: huggingface/autotrain-advanced:latest
+        imagePullPolicy: IfNotPresent
+        command: ["sh", "-c"]
+        args:
+        - |
+          echo "Starting model pre-caching for Qwen/Qwen2.5-Coder-7B-Instruct..."
+          huggingface-cli download Qwen/Qwen2.5-Coder-7B-Instruct --local-dir /models/Qwen2.5-Coder-7B-Instruct --exclude "*.bin" "*.pth"
+          echo "Model weights successfully cached on host path."
+        volumeMounts:
+        - name: cache-volume
+          mountPath: /models
+      volumes:
+      - name: cache-volume
+        hostPath:
+          path: /var/lib/model-cache
+          type: DirectoryOrCreate
