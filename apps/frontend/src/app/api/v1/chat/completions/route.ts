@@ -4,16 +4,12 @@ import { createHash } from 'crypto';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { getAuthenticatedUser } from '@/utils/supabase/auth';
-import Redis from 'ioredis';
+import { getRedisClient } from '@/lib/redis';
 
 const localEmbeddingsFile = path.join(process.cwd(), 'data', 'embeddings-fallback.json');
 
 // Initialize Redis Client
-const redisClient = new Redis(process.env.REDIS_URL || 'redis://127.0.0.1:6379', {
-  connectTimeout: 1000,
-  maxRetriesPerRequest: 1,
-  retryStrategy: () => null,
-});
+const redisClient = getRedisClient();
 
 let isRedisReady = false;
 redisClient.on('connect', () => {

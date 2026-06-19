@@ -49,18 +49,48 @@ export class SandboxService implements OnModuleInit, OnModuleDestroy {
   }
 
   async onModuleInit() {
+    const redisMode = process.env.REDIS_MODE || 'standalone';
     const redisUrl = process.env.REDIS_URL || 'redis://127.0.0.1:6379';
-    console.log(`[Redis Queue] Attempting to connect to Redis at: ${redisUrl}`);
+    console.log(`[Redis Queue] Attempting to connect to Redis in Mode: ${redisMode}`);
 
     try {
-      this.redisClient = new Redis(redisUrl, {
-        connectTimeout: 2000,
-        maxRetriesPerRequest: 1,
-        retryStrategy: () => null, // Do not reconnect on failure
-      });
+      if (redisMode === 'cluster') {
+        const nodesStr = process.env.REDIS_NODES || '127.0.0.1:6379';
+        const nodes = nodesStr.split(',').map(node => {
+          const [host, port] = node.trim().split(':');
+          return { host, port: port ? parseInt(port, 10) : 6379 };
+        });
+        this.redisClient = new Redis.Cluster(nodes, {
+          redisOptions: {
+            connectTimeout: 2000,
+            maxRetriesPerRequest: 1,
+          },
+          clusterRetryStrategy: () => null,
+        }) as any;
+      } else if (redisMode === 'sentinel') {
+        const sentinelsStr = process.env.REDIS_SENTINELS || '127.0.0.1:26379';
+        const sentinels = sentinelsStr.split(',').map(sentinel => {
+          const [host, port] = sentinel.trim().split(':');
+          return { host, port: port ? parseInt(port, 10) : 26379 };
+        });
+        const sentinelName = process.env.REDIS_SENTINEL_NAME || 'mymaster';
+        this.redisClient = new Redis({
+          sentinels,
+          name: sentinelName,
+          connectTimeout: 2000,
+          maxRetriesPerRequest: 1,
+          retryStrategy: () => null,
+        });
+      } else {
+        this.redisClient = new Redis(redisUrl, {
+          connectTimeout: 2000,
+          maxRetriesPerRequest: 1,
+          retryStrategy: () => null, // Do not reconnect on failure
+        });
+      }
 
       // Handle redis error event to prevent crash
-      this.redisClient.on('error', (err) => {
+      this.redisClient!.on('error', (err: any) => {
         console.warn(`[Redis Queue] Redis error event triggered: ${err.message}`);
         this.initializeInMemoryQueue();
       });
@@ -70,7 +100,11 @@ export class SandboxService implements OnModuleInit, OnModuleDestroy {
           reject(new Error('Redis connection timed out (2000ms)'));
         }, 2200);
 
-        this.redisClient!.ping()
+        const pingPromise = typeof this.redisClient!.ping === 'function'
+          ? this.redisClient!.ping()
+          : Promise.resolve('PONG');
+
+        pingPromise
           .then(() => {
             clearTimeout(timeout);
             resolve();
@@ -178,6 +212,42 @@ export class SandboxService implements OnModuleInit, OnModuleDestroy {
   private async runIsolatedSandbox(jobData: SandboxJobData): Promise<SandboxExecutionResult> {
     const { language, code, files, timeoutMs } = jobData;
     
+    // Check if remote Firecracker execution daemon is enabled
+    const sandboxExecutor = process.env.SANDBOX_EXECUTOR || 'local';
+    const daemonUrl = process.env.FIRECRACKER_DAEMON_URL || 'http://localhost:5000/execute';
+
+    if (sandboxExecutor === 'firecracker-daemon') {
+      console.log(`[Sandbox Remote] Forwarding execution request to AWS Firecracker VM pool at: ${daemonUrl}`);
+      try {
+        const response = await fetch(daemonUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            language,
+            code,
+            files,
+            timeoutMs,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error(`Firecracker daemon responded with status code ${response.status}`);
+        }
+
+        const result = (await response.json()) as SandboxExecutionResult;
+        console.log(`[Sandbox Remote] Remote VM execution completed in ${result.executionTimeMs}ms with exit code ${result.exitCode}.`);
+
+        this.totalRuns += 1;
+        this.cumulativeDurationMs += result.executionTimeMs;
+
+        return result;
+      } catch (err: any) {
+        console.warn(`[Sandbox Remote] Remote Firecracker daemon failed: ${err.message}. Falling back to local execution...`);
+      }
+    }
+
     // Simulate AWS Firecracker / gVisor MicroVM Lifecycle
     console.log(`\n[MicroVM Info] VM STATE: UNINITIALIZED`);
     console.log(`[MicroVM Info] Booting guest microVM instance (vCPU: 1, Memory: 256MB, RootFS: alpine-mini)...`);
