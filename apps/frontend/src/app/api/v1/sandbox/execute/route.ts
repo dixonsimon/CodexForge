@@ -39,7 +39,8 @@ export async function POST(req: Request) {
 
     let result;
     try {
-      const response = await fetch('http://127.0.0.1:3001/api/v1/sandbox/execute', {
+      const backendUrl = (process.env.NEXT_PUBLIC_BACKEND_URL || 'http://127.0.0.1:3001').replace(/\/$/, '');
+      const response = await fetch(`${backendUrl}/api/v1/sandbox/execute`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
