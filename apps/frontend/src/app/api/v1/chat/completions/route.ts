@@ -105,6 +105,28 @@ function getLocalResponse(prompt: string) {
   };
 }
 
+async function saveAssistantMessage(conversationId: string | null | undefined, content: string) {
+  if (!process.env.DATABASE_URL || !conversationId) return;
+  try {
+    const assistantCompletionTokens = Math.round(content.length / 4) || 1;
+    await prisma.message.create({
+      data: {
+        conversationId,
+        senderRole: 'assistant',
+        content: content.trim(),
+        completionTokens: assistantCompletionTokens,
+      }
+    });
+
+    await prisma.conversation.update({
+      where: { id: conversationId },
+      data: { updatedAt: new Date() }
+    });
+  } catch (dbErr) {
+    console.error("Failed to persist assistant reply:", dbErr);
+  }
+}
+
 export async function POST(req: Request) {
   const user = await getAuthenticatedUser();
   if (!user) {
@@ -410,6 +432,13 @@ export async function POST(req: Request) {
               conversation_id: activeConversationId || 'default'
             });
           }
+
+          // Save mock completions in completions cache and persist to database
+          if (assistantContent.trim()) {
+            const parsedSnippet = parseCodeBlocks(assistantContent);
+            promptCache.set(cacheKey, { content: assistantContent, codeSnippet: parsedSnippet });
+          }
+          await saveAssistantMessage(activeConversationId, assistantContent);
         } else {
           try {
             let buffer = '';
@@ -479,26 +508,7 @@ export async function POST(req: Request) {
             }
 
             // Persist assistant reply to DB
-            if (process.env.DATABASE_URL && activeConversationId) {
-              try {
-                const assistantCompletionTokens = Math.round(assistantContent.length / 4) || 1;
-                await prisma.message.create({
-                  data: {
-                    conversationId: activeConversationId,
-                    senderRole: 'assistant',
-                    content: assistantContent.trim(),
-                    completionTokens: assistantCompletionTokens,
-                  }
-                });
-
-                await prisma.conversation.update({
-                  where: { id: activeConversationId },
-                  data: { updatedAt: new Date() }
-                });
-              } catch (dbErr) {
-                console.error("Failed to persist assistant reply:", dbErr);
-              }
-            }
+            await saveAssistantMessage(activeConversationId, assistantContent);
             sendChunk({ token: '', finish_reason: 'stop', conversation_id: activeConversationId || 'default' });
             controller.close();
           }

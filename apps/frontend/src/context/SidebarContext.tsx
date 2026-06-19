@@ -10,6 +10,7 @@ interface SidebarContextType {
   handleSelectConversation: (id: string) => Promise<void>;
   handleNewSession: () => void;
   handleDeleteConversation: (id: string, e: React.MouseEvent) => Promise<void>;
+  handleRenameConversation: (id: string, newTitle: string) => Promise<void>;
   isSyncing: boolean;
   syncStatus: string;
   handleSyncIndex: () => Promise<void>;
@@ -17,6 +18,7 @@ interface SidebarContextType {
     handleSelectConversation: (id: string) => Promise<void>;
     handleNewSession: () => void;
     handleDeleteConversation: (id: string, e: React.MouseEvent) => Promise<void>;
+    handleRenameConversation: (id: string, newTitle: string) => Promise<void>;
     handleSyncIndex: () => Promise<void>;
   }) => void;
   setSyncState: (syncing: boolean, status: string) => void;
@@ -34,11 +36,13 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
     handleSelectConversation: (id: string) => Promise<void>;
     handleNewSession: () => void;
     handleDeleteConversation: (id: string, e: React.MouseEvent) => Promise<void>;
+    handleRenameConversation: (id: string, newTitle: string) => Promise<void>;
     handleSyncIndex: () => Promise<void>;
   }>({
     handleSelectConversation: async () => {},
     handleNewSession: () => {},
     handleDeleteConversation: async () => {},
+    handleRenameConversation: async () => {},
     handleSyncIndex: async () => {},
   });
 
@@ -61,6 +65,7 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
         handleSelectConversation: callbacks.handleSelectConversation,
         handleNewSession: callbacks.handleNewSession,
         handleDeleteConversation: callbacks.handleDeleteConversation,
+        handleRenameConversation: callbacks.handleRenameConversation,
         isSyncing,
         syncStatus,
         handleSyncIndex: callbacks.handleSyncIndex,

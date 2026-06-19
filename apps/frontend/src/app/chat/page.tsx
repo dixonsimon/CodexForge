@@ -136,6 +136,7 @@ export default function ChatPage() {
       handleSelectConversation,
       handleNewSession,
       handleDeleteConversation,
+      handleRenameConversation,
       handleSyncIndex,
     });
   }, [conversations, activeConversationId, isSyncing, syncStatus, selectedMode]);
@@ -230,6 +231,23 @@ export default function ChatPage() {
       }
     } catch (error) {
       console.error("Failed to delete conversation:", error);
+    }
+  };
+ 
+  const handleRenameConversation = async (id: string, newTitle: string) => {
+    try {
+      const response = await fetch(`/api/v1/conversations/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: newTitle }),
+      });
+      if (response.ok) {
+        setConversations((prev) =>
+          prev.map((c) => (c.id === id ? { ...c, title: newTitle } : c))
+        );
+      }
+    } catch (error) {
+      console.error("Failed to rename conversation:", error);
     }
   };
 
