@@ -93,7 +93,7 @@ export default function ChatPage() {
     },
   });
   const [activeFileName, setActiveFileName] = useState("main.py");
-  const [lockedFiles, setLockedFiles] = useState<Record<string, string>>({});
+  const [lockedFiles, setLockedFiles] = useState<Record<string, { userName: string; userId: string }>>({});
   const [chatInput, setChatInput] = useState("");
   const [conversations, setConversations] = useState<any[]>([]);
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
@@ -312,16 +312,77 @@ export default function ChatPage() {
     }
   };
 
-  const toggleFileLock = (filename: string) => {
-    setLockedFiles((prev) => {
-      const copy = { ...prev };
-      if (copy[filename]) {
-        delete copy[filename];
-      } else {
-        copy[filename] = "Dixon Simon";
-      }
-      return copy;
+  const [currentUser, setCurrentUser] = useState<any>(null);
+
+  useEffect(() => {
+    supabase.auth.getUser().then((res: any) => {
+      const user = res?.data?.user;
+      if (user) setCurrentUser(user);
     });
+  }, []);
+
+  const fetchLocks = async () => {
+    try {
+      const response = await fetch("/api/v1/projects/workspace-project/locks");
+      if (response.ok) {
+        const data = await response.json();
+        const lockMap: Record<string, { userName: string; userId: string }> = {};
+        data.forEach((lock: any) => {
+          lockMap[lock.filePath] = { userName: lock.userName, userId: lock.userId };
+        });
+        setLockedFiles(lockMap);
+      }
+    } catch (error) {
+      console.error("Failed to fetch active locks:", error);
+    }
+  };
+
+  // Poll active locks every 5 seconds
+  useEffect(() => {
+    fetchLocks();
+    const interval = setInterval(fetchLocks, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const toggleFileLock = async (filename: string) => {
+    const lockInfo = lockedFiles[filename];
+    const isLocked = !!lockInfo;
+    
+    // If locked by someone else, prevent release
+    if (isLocked && lockInfo.userId !== currentUser?.id) {
+      alert(`File is locked by ${lockInfo.userName}. You cannot release this lock.`);
+      return;
+    }
+
+    try {
+      if (isLocked) {
+        // Release lock
+        const response = await fetch("/api/v1/projects/workspace-project/locks", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ filePath: filename }),
+        });
+        if (response.ok) {
+          await fetchLocks();
+        }
+      } else {
+        // Acquire lock
+        const response = await fetch("/api/v1/projects/workspace-project/locks", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ filePath: filename }),
+        });
+        if (response.ok) {
+          await fetchLocks();
+        } else if (response.status === 409) {
+          const data = await response.json();
+          alert(data.error || "Failed to acquire lock. The file is locked by another user.");
+          await fetchLocks();
+        }
+      }
+    } catch (error) {
+      console.error("Failed to toggle file lock:", error);
+    }
   };
 
   const activeFile = files[activeFileName];
@@ -784,9 +845,11 @@ export default function ChatPage() {
           {lockedFiles[activeFileName] && (
             <div className="absolute top-14 left-0 right-0 bg-[#120f0a] border-b border-[#291e13] text-amber-500 text-[10px] py-1.5 px-4 z-10 flex items-center justify-between select-none">
               <span className="flex items-center gap-1.5 font-bold">
-                🔒 File Locked by {lockedFiles[activeFileName]}
+                🔒 File Locked by {lockedFiles[activeFileName].userName}{lockedFiles[activeFileName].userId === currentUser?.id ? " (You)" : ""}
               </span>
-              <span className="text-[9px] text-amber-600 font-semibold font-mono">ReadOnly Mode Active</span>
+              {lockedFiles[activeFileName].userId !== currentUser?.id && (
+                <span className="text-[9px] text-amber-600 font-semibold font-mono">ReadOnly Mode Active</span>
+              )}
             </div>
           )}
 
@@ -807,7 +870,7 @@ export default function ChatPage() {
                     onClick={() => toggleFileLock(name)}
                     className={`p-1 hover:text-white transition-colors cursor-pointer text-[10px] ${lockedFiles[name] ? "text-amber-500" : "text-neutral-600 hover:text-neutral-400"
                       }`}
-                    title={lockedFiles[name] ? `Locked. Click to unlock ${name}` : `Click to Lock ${name}`}
+                    title={lockedFiles[name] ? `Locked by ${lockedFiles[name].userName}. Click to release/acquire.` : `Click to Lock ${name}`}
                   >
                     {lockedFiles[name] ? "🔒" : "🔓"}
                   </button>
@@ -843,7 +906,7 @@ export default function ChatPage() {
                 lineHeight: 18,
                 fontFamily: "var(--font-mono)",
                 automaticLayout: true,
-                readOnly: !!lockedFiles[activeFileName],
+                readOnly: !!lockedFiles[activeFileName] && lockedFiles[activeFileName].userId !== currentUser?.id,
               }}
             />
           </div>

@@ -22,6 +22,7 @@ model User {
   memberships        OrgMember[]
   conversations      Conversation[]
   apiKeys            ApiKey[]
+  fileLocks          FileLock[]
 
   @@map("users")
 }
@@ -63,6 +64,7 @@ model Project {
   updatedAt          DateTime       @updatedAt
   conversations      Conversation[]
   fileIndexes        FileIndex[]
+  fileLocks          FileLock[]
 
   @@map("projects")
 }
@@ -124,4 +126,19 @@ model FileIndex {
   updatedAt      DateTime @updatedAt
 
   @@map("file_index")
+}
+
+model FileLock {
+  id        String   @id @default(uuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  filePath  String
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userName  String
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+
+  @@unique([projectId, filePath])
+  @@map("file_locks")
 }
