@@ -217,15 +217,30 @@ async def generate_chat_completions(messages_list: List[Message], project_id: Op
     matches = []
     if project_id:
         try:
+            from services.hybrid_search import HybridSearch
             qdrant = QdrantService()
             query_vector = qdrant.get_token_vector(last_message)
-            matches = qdrant.search_similar_code(project_id, query_vector, limit=3)
+            vector_results = qdrant.search_similar_code(project_id, query_vector, limit=10)
+            
+            # Retrieve all database chunks for BM25 lexical search
+            try:
+                with open(qdrant.db_path, "r", encoding="utf-8") as f:
+                    all_chunks = json.load(f)
+                project_chunks = [c for c in all_chunks if c.get("payload", {}).get("project_id") == project_id]
+            except Exception:
+                project_chunks = []
+                
+            matches = HybridSearch.blend_hybrid_results(last_message, project_chunks, vector_results, limit=3)
             # Filter matches to only include ones that actually match reasonably well (> 0.05 score)
             matches = [m for m in matches if m.score > 0.05]
             if matches:
                 rag_context = "\n\nRelevant code context from the repository:\n"
                 for m in matches:
                     rag_context += f"\nFile: {m.payload['file_path']} ({m.payload['type']}: {m.payload['name']})\n"
+                    # Add dependency graph structure links if present
+                    if m.payload.get("dependency_links"):
+                        links = ", ".join(m.payload["dependency_links"])
+                        rag_context += f"Related Symbols: {links}\n"
                     rag_context += f"```\n{m.payload['code']}\n```\n"
         except Exception as e:
             print(f"RAG search failed: {e}")
