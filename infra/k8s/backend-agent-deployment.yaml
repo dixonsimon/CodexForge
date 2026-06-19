@@ -1,0 +1,67 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: codexforge-backend-agent
+  namespace: codexforge
+  labels:
+    app: codexforge-backend-agent
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: codexforge-backend-agent
+  template:
+    metadata:
+      labels:
+        app: codexforge-backend-agent
+    spec:
+      containers:
+      - name: backend-agent
+        image: codexforge/backend-agent:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8000
+          name: http
+        env:
+        - name: QDRANT_HOST
+          value: "codexforge-qdrant"
+        - name: QDRANT_PORT
+          value: "6333"
+        - name: VLLM_API_URL
+          value: "http://codexforge-vllm-inference:8000/v1"
+        resources:
+          limits:
+            cpu: "1"
+            memory: 2Gi
+          requests:
+            cpu: 500m
+            memory: 1Gi
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 20
+          periodSeconds: 20
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: codexforge-backend-agent
+  namespace: codexforge
+  labels:
+    app: codexforge-backend-agent
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8000
+    targetPort: 8000
+    protocol: TCP
+    name: http
+  selector:
+    app: codexforge-backend-agent

@@ -1,0 +1,41 @@
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: codexforge-vllm-hpa
+  namespace: codexforge
+  labels:
+    app: codexforge-vllm-inference
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: codexforge-vllm-inference
+  minReplicas: 1
+  maxReplicas: 8
+  metrics:
+  - type: External
+    external:
+      metric:
+        name: vllm_num_requests_waiting
+      target:
+        type: Value
+        value: "5"
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 85
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 0
+      policies:
+      - type: Percent
+        value: 100
+        periodSeconds: 15
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+      - type: Percent
+        value: 10
+        periodSeconds: 60
