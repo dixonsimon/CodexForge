@@ -1,0 +1,49 @@
+# Node dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Next.js builds
+.next/
+out/
+
+# NestJS build output
+dist/
+
+# Local database files
+*.db
+*.db-journal
+
+# Environment variables (Crucial for API key safety!)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Fallbacks & Telemetry data
+apps/frontend/data/*.json
+apps/backend-core/data/*.json
+
+# Python caches and virtualenvs
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+env/
+.env/
+
+# IDE files
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# OS files
+.DS_Store
+Thumbs.db
