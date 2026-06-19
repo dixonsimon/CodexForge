@@ -161,8 +161,8 @@ async def generate_chat_completions(messages_list: List[Message], project_id: Op
         engine = SpeculativeDecodingEngine()
         try:
             async for chunk in engine.generate_speculative_stream(last_message):
-                yield f"data: {json.dumps({'token': chunk, 'finish_reason': None})}\n\n"
-            yield f"data: {json.dumps({'token': '', 'finish_reason': 'stop'})}\n\n"
+                yield "data: " + json.dumps({'token': chunk, 'finish_reason': None}) + "\n\n"
+            yield "data: " + json.dumps({'token': '', 'finish_reason': 'stop'}) + "\n\n"
             return
         except Exception as e:
             print(f"Speculative decoding engine failed: {e}")
@@ -189,24 +189,24 @@ async def generate_chat_completions(messages_list: List[Message], project_id: Op
             result = await orchestrator.run_pipeline(last_message, project_id, language=lang, trace_id=trace_id, parent_span_id=parent_span_id)
             
             # Stream the coordinator pipeline steps back as agent token updates
-            yield f"data: {json.dumps({'token': '⚙️ [CodexForge Multi-Agent Pipeline Activated]\\n\\n', 'finish_reason': None})}\n\n"
+            yield "data: " + json.dumps({'token': '⚙️ [CodexForge Multi-Agent Pipeline Activated]\n\n', 'finish_reason': None}) + "\n\n"
             for log in result["logs"]:
-                yield f"data: {json.dumps({'token': log + '\\n', 'finish_reason': None})}\n\n"
+                yield "data: " + json.dumps({'token': log + '\n', 'finish_reason': None}) + "\n\n"
                 await asyncio.sleep(0.1)
 
-            yield f"data: {json.dumps({'token': '\\nHere is the generated implementation:\\n\\n', 'finish_reason': None})}\n\n"
+            yield "data: " + json.dumps({'token': '\nHere is the generated implementation:\n\n', 'finish_reason': None}) + "\n\n"
             
             # Stream the code blocks
             code_block = f"```python\n{result['code']}\n```"
             for token in code_block.split(" "):
-                yield f"data: {json.dumps({'token': token + ' ', 'finish_reason': None})}\n\n"
+                yield "data: " + json.dumps({'token': token + ' ', 'finish_reason': None}) + "\n\n"
                 await asyncio.sleep(0.02)
 
             snippet = {
                 "filename": "main.py" if lang == "python" else "main.ts" if lang == "typescript" else "main.js",
                 "code": result["code"]
             }
-            yield f"data: {json.dumps({'token': '', 'finish_reason': 'stop', 'code_snippet': snippet})}\n\n"
+            yield "data: " + json.dumps({'token': '', 'finish_reason': 'stop', 'code_snippet': snippet}) + "\n\n"
             return
         except Exception as e:
             print(f"Multi-Agent pipeline failed: {e}")
@@ -279,12 +279,12 @@ async def generate_chat_completions(messages_list: List[Message], project_id: Op
                                 chunk_json = json.loads(data_content)
                                 token = chunk_json["choices"][0]["delta"].get("content", "")
                                 if token:
-                                    yield f"data: {json.dumps({'token': token, 'finish_reason': None})}\n\n"
+                                    yield "data: " + json.dumps({'token': token, 'finish_reason': None}) + "\n\n"
                             except Exception:
                                 pass
                             
                     # Finished stream
-                    yield f"data: {json.dumps({'token': '', 'finish_reason': 'stop'})}\n\n"
+                    yield "data: " + json.dumps({'token': '', 'finish_reason': 'stop'}) + "\n\n"
     except Exception as e:
         print(f"Hugging Face API unavailable (using local fallback): {e}")
 
@@ -299,7 +299,7 @@ async def generate_chat_completions(messages_list: List[Message], project_id: Op
             # Send the matched text
             tokens = text.split(" ")
             for token in tokens:
-                yield f"data: {json.dumps({'token': token + ' ', 'finish_reason': None})}\n\n"
+                yield "data: " + json.dumps({'token': token + ' ', 'finish_reason': None}) + "\n\n"
                 await asyncio.sleep(0.04)
                 
             # Send the snippet
@@ -308,7 +308,7 @@ async def generate_chat_completions(messages_list: List[Message], project_id: Op
                 "filename": first_match["file_path"],
                 "code": first_match["code"]
             }
-            yield f"data: {json.dumps({'token': '\n', 'finish_reason': 'stop', 'code_snippet': snippet})}\n\n"
+            yield "data: " + json.dumps({'token': '\n', 'finish_reason': 'stop', 'code_snippet': snippet}) + "\n\n"
         else:
             local_resp = get_local_response(last_message)
             text = local_resp["text"]
@@ -317,14 +317,14 @@ async def generate_chat_completions(messages_list: List[Message], project_id: Op
             # Stream the text token-by-token for high-fidelity chat experience
             tokens = text.split(" ")
             for token in tokens:
-                yield f"data: {json.dumps({'token': token + ' ', 'finish_reason': None})}\n\n"
+                yield "data: " + json.dumps({'token': token + ' ', 'finish_reason': None}) + "\n\n"
                 await asyncio.sleep(0.04)
                 
             # Send snippet at the end if applicable
             if snippet:
-                yield f"data: {json.dumps({'token': '', 'finish_reason': 'stop', 'code_snippet': snippet})}\n\n"
+                yield "data: " + json.dumps({'token': '', 'finish_reason': 'stop', 'code_snippet': snippet}) + "\n\n"
             else:
-                yield f"data: {json.dumps({'token': '', 'finish_reason': 'stop'})}\n\n"
+                yield "data: " + json.dumps({'token': '', 'finish_reason': 'stop'}) + "\n\n"
 
 from fastapi import Request
 
