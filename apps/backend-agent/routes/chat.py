@@ -145,7 +145,7 @@ class SpeculativeDecodingEngine:
                 await asyncio.sleep(0.02)
             yield "\n\n"
 
-async def generate_chat_completions(messages_list: List[Message], project_id: Optional[str] = None):
+async def generate_chat_completions(messages_list: List[Message], project_id: Optional[str] = None, trace_id: Optional[str] = None, parent_span_id: Optional[str] = None):
     last_message = messages_list[-1].content if messages_list else ""
     
     # Identify if high-performance inference / speculative decoding is requested
@@ -186,7 +186,7 @@ async def generate_chat_completions(messages_list: List[Message], project_id: Op
                 lang = "typescript"
 
             # Execute pipeline
-            result = await orchestrator.run_pipeline(last_message, project_id, language=lang)
+            result = await orchestrator.run_pipeline(last_message, project_id, language=lang, trace_id=trace_id, parent_span_id=parent_span_id)
             
             # Stream the coordinator pipeline steps back as agent token updates
             yield f"data: {json.dumps({'token': '⚙️ [CodexForge Multi-Agent Pipeline Activated]\\n\\n', 'finish_reason': None})}\n\n"
@@ -326,10 +326,20 @@ async def generate_chat_completions(messages_list: List[Message], project_id: Op
             else:
                 yield f"data: {json.dumps({'token': '', 'finish_reason': 'stop'})}\n\n"
 
+from fastapi import Request
+
 @router.post("/completions")
-async def create_chat_completion(request: ChatCompletionRequest):
+async def create_chat_completion(chat_request: ChatCompletionRequest, request: Request):
+    trace_id = getattr(request.state, "trace_id", None)
+    span_id = getattr(request.state, "span_id", None)
+    
     return StreamingResponse(
-        generate_chat_completions(request.messages, request.project_id),
+        generate_chat_completions(
+            chat_request.messages,
+            chat_request.project_id,
+            trace_id=trace_id,
+            parent_span_id=span_id
+        ),
         media_type="text/event-stream"
     )
 

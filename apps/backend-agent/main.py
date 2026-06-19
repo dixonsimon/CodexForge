@@ -1,10 +1,12 @@
 import uvicorn
-from fastapi import FastAPI, Response
+import time
+from fastapi import FastAPI, Response, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 # Import routers
 from routes import chat, repos
 from services.vllm_service import VLLMInferenceClient
+from services.telemetry import agent_telemetry
 
 app = FastAPI(
     title="CodexForge Agent API",
@@ -20,6 +22,56 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.middleware("http")
+async def add_otel_telemetry(request: Request, call_next):
+    traceparent = request.headers.get("traceparent")
+    ctx = agent_telemetry.parse_traceparent(traceparent)
+    
+    span = agent_telemetry.start_span(
+        name=f"HTTP {request.method} {request.url.path}",
+        trace_id=ctx["trace_id"],
+        parent_span_id=ctx["parent_span_id"],
+        attributes={
+            "http.method": request.method,
+            "http.url": str(request.url),
+            "client.ip": request.client.host if request.client else "127.0.0.1"
+        }
+    )
+    
+    request.state.trace_id = span.trace_id
+    request.state.span_id = span.span_id
+
+    start_time = time.time()
+    try:
+        response = await call_next(request)
+        duration_ms = int((time.time() - start_time) * 1000)
+        
+        response.headers["traceparent"] = f"00-{span.trace_id}-{span.span_id}-01"
+        
+        extra_attrs = {
+            "http.status_code": str(response.status_code),
+            "http.duration_ms": str(duration_ms)
+        }
+        if response.status_code >= 400:
+            extra_attrs["error"] = "true"
+            
+        await agent_telemetry.end_span(span, extra_attrs)
+        agent_telemetry.record_metric("http.request.duration", duration_ms, {
+            "method": request.method,
+            "path": request.url.path,
+            "statusCode": str(response.status_code)
+        })
+        
+        return response
+    except Exception as e:
+        duration_ms = int((time.time() - start_time) * 1000)
+        await agent_telemetry.end_span(span, {
+            "error": "true",
+            "error.message": str(e),
+            "http.duration_ms": str(duration_ms)
+        })
+        raise e
 
 # Register endpoints
 app.include_router(chat.router, prefix="/api/v1/chat", tags=["Chat & Agent"])

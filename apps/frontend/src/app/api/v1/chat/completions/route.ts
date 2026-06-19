@@ -205,6 +205,22 @@ async function saveAssistantMessage(conversationId: string | null | undefined, c
 }
 
 export async function POST(req: Request) {
+  const traceParentHeader = req.headers.get('traceparent') || req.headers.get('x-trace-id') || '';
+  let traceId = generateHexId(16);
+  let parentSpanId: string | undefined = undefined;
+
+  if (traceParentHeader) {
+    const parts = traceParentHeader.split('-');
+    if (parts.length >= 3) {
+      traceId = parts[1];
+      parentSpanId = parts[2];
+    }
+  }
+  const spanId = generateHexId(8);
+  const startTime = Date.now();
+  let provider: 'gemini' | 'openai' | 'mock' = 'mock';
+  let modelToUse = 'CodexForge-MoE';
+
   const user = await getAuthenticatedUser();
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -221,8 +237,7 @@ export async function POST(req: Request) {
     const lastMessage = messages[messages.length - 1]?.content || '';
 
     // Choose Provider and Map selected Models
-    let provider: 'gemini' | 'openai' | 'mock' = 'mock';
-    let modelToUse = model || 'CodexForge-MoE';
+    modelToUse = model || 'CodexForge-MoE';
     let keyMissingWarning = '';
 
     if (modelToUse === 'CodexForge-MoE') {
@@ -591,6 +606,24 @@ export async function POST(req: Request) {
 
             // Persist assistant reply to DB
             await saveAssistantMessage(activeConversationId, assistantContent);
+
+            const durationMs = Date.now() - startTime;
+            // Send OTLP trace span for successful completions
+            await sendNextjsOtelSpan(
+              `Completions Stream ${modelToUse}`,
+              traceId,
+              spanId,
+              parentSpanId,
+              durationMs,
+              {
+                'llm.model': modelToUse,
+                'llm.provider': provider,
+                'llm.prompt_cache_hit': cachedResponse ? 'true' : 'false',
+                'llm.tokens_generated_estimate': String(Math.round(assistantContent.length / 4)),
+                'http.status_code': '200',
+              }
+            );
+
             sendChunk({ token: '', finish_reason: 'stop', conversation_id: activeConversationId || 'default' });
             controller.close();
           }
@@ -606,8 +639,92 @@ export async function POST(req: Request) {
       }
     });
   } catch (error: any) {
+    const durationMs = Date.now() - startTime;
+    await sendNextjsOtelSpan(
+      `Completions Stream ${modelToUse || 'unknown'}`,
+      traceId,
+      spanId,
+      parentSpanId,
+      durationMs,
+      {
+        'llm.model': modelToUse || 'unknown',
+        'error': 'true',
+        'error.message': error.message || 'Completions error.',
+        'http.status_code': '500',
+      }
+    );
     return NextResponse.json({ error: error.message || 'Completions error.' }, { status: 500 });
   }
 }
+
+function generateHexId(bytes: number): string {
+  const chars = '0123456789abcdef';
+  let result = '';
+  for (let i = 0; i < bytes * 2; i++) {
+    result += chars[Math.floor(Math.random() * 16)];
+  }
+  return result;
+}
+
+async function sendNextjsOtelSpan(
+  name: string,
+  traceId: string,
+  spanId: string,
+  parentSpanId: string | undefined,
+  durationMs: number,
+  attributes: Record<string, string>,
+) {
+  const endpoint = process.env.OTLP_TRACE_ENDPOINT || 'http://localhost:4318/v1/traces';
+  const startTimeUnixNano = (BigInt(Date.now() - durationMs) * BigInt(1000000)).toString();
+  const endTimeUnixNano = (BigInt(Date.now()) * BigInt(1000000)).toString();
+
+  const payload = {
+    resourceSpans: [
+      {
+        resource: {
+          attributes: [
+            { key: 'service.name', value: { stringValue: 'frontend-nextjs' } },
+            { key: 'telemetry.sdk.name', value: { stringValue: 'codexforge-otel-nextjs' } },
+          ],
+        },
+        scopeSpans: [
+          {
+            scope: { name: 'codexforge.nextjs.tracer' },
+            spans: [
+              {
+                traceId,
+                spanId,
+                parentSpanId: parentSpanId || undefined,
+                name,
+                kind: 2, // SERVER
+                startTimeUnixNano,
+                endTimeUnixNano,
+                attributes: Object.entries(attributes).map(([key, val]) => ({
+                  key,
+                  value: { stringValue: String(val) },
+                })),
+                status: {
+                  code: attributes['error'] ? 2 : 1,
+                },
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  };
+
+  try {
+    await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    console.log(`[Telemetry Span] ${name} | Trace ID: ${traceId} | Duration: ${durationMs}ms`);
+  } catch (err: any) {
+    // Fail silently if OTLP collector is offline
+  }
+}
+
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';

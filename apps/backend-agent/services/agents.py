@@ -85,17 +85,38 @@ class AgentOrchestrator:
         self.reviewer = ReviewerAgent()
         self.deployer = DeployerAgent()
 
-    async def run_pipeline(self, prompt: str, project_id: Optional[str], language: str = "python"):
+    async def run_pipeline(self, prompt: str, project_id: Optional[str], language: str = "python", trace_id: Optional[str] = None, parent_span_id: Optional[str] = None):
+        from services.telemetry import agent_telemetry
+
+        # Parent pipeline span
+        pipeline_span = agent_telemetry.start_span(
+            name="Orchestrator Pipeline",
+            trace_id=trace_id,
+            parent_span_id=parent_span_id,
+            attributes={"project_id": project_id or "default", "language": language}
+        )
+
         logs = []
         
         # 1. Planner/Coordinator
+        planner_span = agent_telemetry.start_span(
+            name="Planner Agent",
+            trace_id=pipeline_span.trace_id,
+            parent_span_id=pipeline_span.span_id
+        )
         logs.append("Planner Agent: Outlining task and analyzing workspace AST...")
         plan = await self.planner.plan_task(prompt, project_id)
         for idx, step in enumerate(plan):
             logs.append(f"  - Step {idx+1}: {step}")
         await asyncio.sleep(0.1)
+        await agent_telemetry.end_span(planner_span)
 
         # 2. Editor
+        editor_span = agent_telemetry.start_span(
+            name="Editor Agent",
+            trace_id=pipeline_span.trace_id,
+            parent_span_id=pipeline_span.span_id
+        )
         logs.append("Editor Agent: Writing code edits and verifying inside isolated Sandbox MicroVM...")
         # Generate target code based on prompt
         code = "print('Hello, World!')"
@@ -112,18 +133,40 @@ class AgentOrchestrator:
         )
         logs.append(f"  - Sandbox Run exit code: {sandbox_res.get('exitCode')} | latency: {sandbox_res.get('executionTimeMs')}ms")
         await asyncio.sleep(0.1)
+        await agent_telemetry.end_span(editor_span, {
+            "sandbox.exit_code": str(sandbox_res.get('exitCode')),
+            "sandbox.duration_ms": str(sandbox_res.get('executionTimeMs'))
+        })
 
         # 3. Reviewer
+        reviewer_span = agent_telemetry.start_span(
+            name="Reviewer Agent",
+            trace_id=pipeline_span.trace_id,
+            parent_span_id=pipeline_span.span_id
+        )
         logs.append("Reviewer Agent: Evaluating compile outcomes and test diagnostics...")
         review = await self.reviewer.review_results(sandbox_res)
         logs.append(f"  - Review status: {'APPROVED' if review['approved'] else 'REJECTED'}")
         logs.append(f"  - Comments: {review['comments']}")
         await asyncio.sleep(0.1)
+        await agent_telemetry.end_span(reviewer_span, {
+            "reviewer.approved": str(review['approved'])
+        })
 
         # 4. Deployer
+        deployer_span = agent_telemetry.start_span(
+            name="Deployer Agent",
+            trace_id=pipeline_span.trace_id,
+            parent_span_id=pipeline_span.span_id
+        )
         logs.append("Deployer Agent: Syncing clean code commits to branch...")
         deploy_msg = await self.deployer.deploy_changes(project_id)
         logs.append(f"  - Deploy status: {deploy_msg}")
+        await agent_telemetry.end_span(deployer_span)
+
+        await agent_telemetry.end_span(pipeline_span, {
+            "pipeline.success": str(review["approved"])
+        })
         
         return {
             "success": review["approved"],
