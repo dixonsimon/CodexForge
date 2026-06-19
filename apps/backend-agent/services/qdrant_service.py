@@ -6,8 +6,10 @@ from typing import List, Dict, Any
 
 class QdrantService:
     def __init__(self):
-        self.data_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data")
-        self.db_path = os.path.join(self.data_dir, "embeddings.json")
+        services_dir = os.path.dirname(os.path.abspath(__file__))
+        workspace_root = os.path.abspath(os.path.join(services_dir, "..", "..", ".."))
+        self.data_dir = os.path.join(workspace_root, "apps", "frontend", "data")
+        self.db_path = os.path.join(self.data_dir, "embeddings-fallback.json")
         self.collection_name = "repo_embeddings"
         self.vector_dim = 1536
         self._ensure_db()
