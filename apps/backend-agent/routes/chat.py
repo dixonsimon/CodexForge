@@ -120,10 +120,57 @@ def get_local_response(prompt: str):
     }
 
 from services.qdrant_service import QdrantService
+from services.agents import AgentOrchestrator
 
 async def generate_chat_completions(messages_list: List[Message], project_id: Optional[str] = None):
     last_message = messages_list[-1].content if messages_list else ""
     
+    # Identify if this is a coding request to activate Multi-Agent worker pipeline
+    query = last_message.lower().strip()
+    is_coding_request = False
+    code_keywords = ["code", "write", "program", "function", "script", "class", "print", "implement", "create", "generate", "fizzbuzz", "fibonacci", "factorial", "reverse"]
+    for word in code_keywords:
+        if word in query:
+            is_coding_request = True
+            break
+
+    if is_coding_request:
+        orchestrator = AgentOrchestrator()
+        try:
+            # Determine language based on query
+            lang = "python"
+            if any(k in query for k in ["js", "javascript", "node"]):
+                lang = "javascript"
+            elif any(k in query for k in ["ts", "typescript"]):
+                lang = "typescript"
+
+            # Execute pipeline
+            result = await orchestrator.run_pipeline(last_message, project_id, language=lang)
+            
+            # Stream the coordinator pipeline steps back as agent token updates
+            yield f"data: {json.dumps({'token': '⚙️ [CodexForge Multi-Agent Pipeline Activated]\\n\\n', 'finish_reason': None})}\n\n"
+            for log in result["logs"]:
+                yield f"data: {json.dumps({'token': log + '\\n', 'finish_reason': None})}\n\n"
+                await asyncio.sleep(0.1)
+
+            yield f"data: {json.dumps({'token': '\\nHere is the generated implementation:\\n\\n', 'finish_reason': None})}\n\n"
+            
+            # Stream the code blocks
+            code_block = f"```python\n{result['code']}\n```"
+            for token in code_block.split(" "):
+                yield f"data: {json.dumps({'token': token + ' ', 'finish_reason': None})}\n\n"
+                await asyncio.sleep(0.02)
+
+            snippet = {
+                "filename": "main.py" if lang == "python" else "main.ts" if lang == "typescript" else "main.js",
+                "code": result["code"]
+            }
+            yield f"data: {json.dumps({'token': '', 'finish_reason': 'stop', 'code_snippet': snippet})}\n\n"
+            return
+        except Exception as e:
+            print(f"Multi-Agent pipeline failed: {e}")
+            # fall back to standard completions if pipeline fails
+
     # Perform local semantic search if project_id is present
     rag_context = ""
     matches = []

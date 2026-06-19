@@ -1,6 +1,7 @@
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 generator client {
@@ -10,6 +11,8 @@ generator client {
 model User {
   id                 String         @id @default(uuid())
   email              String         @unique
+  name               String?
+  avatarUrl          String?
   passwordHash       String?
   githubOauthToken   String?
   billingTier        String         @default("free")
@@ -19,6 +22,7 @@ model User {
   memberships        OrgMember[]
   conversations      Conversation[]
   apiKeys            ApiKey[]
+  fileLocks          FileLock[]
 
   @@map("users")
 }
@@ -60,6 +64,7 @@ model Project {
   updatedAt          DateTime       @updatedAt
   conversations      Conversation[]
   fileIndexes        FileIndex[]
+  fileLocks          FileLock[]
 
   @@map("projects")
 }
@@ -117,7 +122,23 @@ model FileIndex {
   fileSha        String
   fileSizeBytes  Int
   language       String
+  embedding      String?  // We can store embedding vectors as serialized strings, or JSON, to bypass direct pgvector Prisma types cleanly
   updatedAt      DateTime @updatedAt
 
   @@map("file_index")
+}
+
+model FileLock {
+  id        String   @id @default(uuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  filePath  String
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userName  String
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+
+  @@unique([projectId, filePath])
+  @@map("file_locks")
 }

@@ -4,11 +4,92 @@ import { createHash } from 'crypto';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { getAuthenticatedUser } from '@/utils/supabase/auth';
+import Redis from 'ioredis';
 
 const localEmbeddingsFile = path.join(process.cwd(), 'data', 'embeddings-fallback.json');
 
-// In-memory LLM response cache
-const promptCache = new Map<string, { content: string; codeSnippet?: any }>();
+// Initialize Redis Client
+const redisClient = new Redis(process.env.REDIS_URL || 'redis://127.0.0.1:6379', {
+  connectTimeout: 1000,
+  maxRetriesPerRequest: 1,
+  retryStrategy: () => null,
+});
+
+let isRedisReady = false;
+redisClient.on('connect', () => {
+  isRedisReady = true;
+  console.log('[Redis] Connected successfully.');
+});
+redisClient.on('error', (err) => {
+  isRedisReady = false;
+  console.warn('[Redis] Connection offline, using in-memory fallbacks. Error:', err.message);
+});
+
+// Declarations for fallback variables
+declare global {
+  var memoryRateLimits: Map<string, number[]> | undefined;
+}
+
+if (!globalThis.memoryRateLimits) {
+  globalThis.memoryRateLimits = new Map<string, number[]>();
+}
+
+const localCache = new Map<string, { content: string; codeSnippet?: any }>();
+
+// Caching wrappers
+async function getFromCache(key: string): Promise<{ content: string; codeSnippet?: any } | null> {
+  if (isRedisReady) {
+    try {
+      const data = await redisClient.get(`llm:prompt:cache:${key}`);
+      if (data) return JSON.parse(data);
+    } catch (err) {
+      console.warn('[Redis Cache] Read error:', err);
+    }
+  }
+  return localCache.get(key) || null;
+}
+
+async function saveToCache(key: string, data: { content: string; codeSnippet?: any }) {
+  if (isRedisReady) {
+    try {
+      await redisClient.set(`llm:prompt:cache:${key}`, JSON.stringify(data), 'EX', 7200); // 2 Hours expiration
+      return;
+    } catch (err) {
+      console.warn('[Redis Cache] Write error:', err);
+    }
+  }
+  localCache.set(key, data);
+}
+
+// Sliding-window rate limiter
+async function isRateLimited(userId: string, limit = 60, windowSeconds = 60): Promise<boolean> {
+  const key = `rate:limit:${userId}:completions`;
+  const now = Date.now();
+  const clearBefore = now - windowSeconds * 1000;
+
+  if (isRedisReady) {
+    try {
+      const pipeline = redisClient.multi();
+      pipeline.zremrangebyscore(key, 0, clearBefore);
+      pipeline.zadd(key, now, now.toString());
+      pipeline.zcard(key);
+      pipeline.expire(key, windowSeconds);
+      const results = await pipeline.exec();
+      if (results && results[2]) {
+        const count = results[2][1] as number;
+        return count > limit;
+      }
+    } catch (err) {
+      console.warn('[Redis Rate Limiter] Error, falling back to memory:', err);
+    }
+  }
+
+  const timestamps = globalThis.memoryRateLimits!.get(userId) || [];
+  const validTimestamps = timestamps.filter((t) => t > clearBefore);
+  validTimestamps.push(now);
+  globalThis.memoryRateLimits!.set(userId, validTimestamps);
+  return validTimestamps.length > limit;
+}
 
 function getTokenVector(text: string, dimensions = 1536): number[] {
   const tokens = text.toLowerCase().match(/[a-zA-Z0-9_]+/g) || [];
@@ -133,6 +214,11 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  // Rate limiting check
+  if (await isRateLimited(user.id)) {
+    return NextResponse.json({ error: 'Too Many Requests. Rate limit exceeded (60 requests/minute).' }, { status: 429 });
+  }
+
   try {
     const body = await req.json();
     const { messages, project_id, conversation_id, model, system_prompt } = body;
@@ -195,7 +281,7 @@ export async function POST(req: Request) {
       .update(`${modelToUse}_${promptInstruction}_${JSON.stringify(messages)}`)
       .digest('hex');
 
-    const cachedResponse = promptCache.get(cacheKey);
+    const cachedResponse = await getFromCache(cacheKey);
     if (cachedResponse) {
       console.log("LLM Cache Hit for key:", cacheKey);
 
@@ -436,7 +522,7 @@ export async function POST(req: Request) {
           // Save mock completions in completions cache and persist to database
           if (assistantContent.trim()) {
             const parsedSnippet = parseCodeBlocks(assistantContent);
-            promptCache.set(cacheKey, { content: assistantContent, codeSnippet: parsedSnippet });
+            await saveToCache(cacheKey, { content: assistantContent, codeSnippet: parsedSnippet });
           }
           await saveAssistantMessage(activeConversationId, assistantContent);
         } else {
@@ -504,7 +590,7 @@ export async function POST(req: Request) {
             // Save inside completions cache
             if (assistantContent.trim()) {
               const parsedSnippet = parseCodeBlocks(assistantContent);
-              promptCache.set(cacheKey, { content: assistantContent, codeSnippet: parsedSnippet });
+              await saveToCache(cacheKey, { content: assistantContent, codeSnippet: parsedSnippet });
             }
 
             // Persist assistant reply to DB

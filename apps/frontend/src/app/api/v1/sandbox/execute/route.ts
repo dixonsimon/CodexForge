@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import * as fs from 'fs/promises';
 import * as path from 'path';
+import { getAuthenticatedUser } from '@/utils/supabase/auth';
 
 const localSandboxStatsFile = path.join(process.cwd(), 'data', 'sandbox-stats.json');
 
@@ -23,9 +24,14 @@ async function updateSandboxStats(executionTimeMs: number) {
 }
 
 export async function POST(req: Request) {
+  const user = await getAuthenticatedUser();
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
     const body = await req.json();
-    const { language, code, files = [], timeoutMs = 5000 } = body;
+    const { language, code, files = [], timeoutMs = 5000, projectId = 'workspace-project' } = body;
 
     if (!language || !code) {
       return NextResponse.json({ error: 'Language and code parameters are required.' }, { status: 400 });
@@ -35,11 +41,19 @@ export async function POST(req: Request) {
     try {
       const response = await fetch('http://127.0.0.1:3001/api/v1/sandbox/execute', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ language, code, files, timeoutMs }),
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-user-id': user.id,
+          'x-project-id': projectId
+        },
+        body: JSON.stringify({ language, code, files, timeoutMs, projectId }),
       });
 
       if (!response.ok) {
+        if (response.status === 403) {
+          const errData = await response.json().catch(() => ({}));
+          return NextResponse.json({ error: errData.message || 'Access denied by RBAC Guard.' }, { status: 403 });
+        }
         throw new Error("Local sandbox returned non-ok status");
       }
       result = await response.json();

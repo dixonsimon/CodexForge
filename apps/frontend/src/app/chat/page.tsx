@@ -429,6 +429,7 @@ export default function ChatPage() {
           code: activeFile.content,
           files: additionalFiles,
           timeoutMs: 5000,
+          projectId: "workspace-project",
         }),
       });
 
