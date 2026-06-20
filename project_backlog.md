@@ -41,6 +41,9 @@ This document outlines the current feature completion status and lists the pendi
 * **Telemetry, APM & Logging (Distributed Tracing)**: Instruments Next.js, NestJS, and Python FastAPI microservices with custom OpenTelemetry (OTel) context propagation. Generates W3C traceparents, tracks rate-limiting cache latencies, and exports standard HTTP OTLP spans to Jaeger/Tempo.
 * **Distributed Fine-Tuning & Model Merging**: Configured PyTorch Fully Sharded Data Parallel (FSDP) process parameters, implemented Direct Preference Optimization (DPO) preference margin loss equations, and developed SLERP/TIES parameter-level weight merging adapters.
 * **Future Roadmap & Next-Generation Capabilities**: Implemented multimodal AST image layout scanners, federated weights averaging algorithm (FedAvg), anomalous command safety pattern guardrails, and self-play compiler reinforcement reward loops (RLAIF).
+* **Cross-Host Overlay Storage Sharding**: Implemented clustered workspace node balancing (Round-Robin and Least-Connections) with automatic host lock lease management and EFS/NFS multi-host file replication pathways.
+* **Self-Refactoring Multi-Agent Teams**: Developed automated loops analyzing Jaeger/Tempo telemetry logs to isolate execution bottlenecks, generate optimization code patches, verify safety sandbox builds, and push git commits automatically.
+* **Context-Aware Dynamic Quantization**: Configured dynamic load profiler metrics evaluating system capacity constraints and transitioning LLM precision models (FP16, INT8, AWQ-4bit) backed by custom OpenTelemetry trace events.
 
 ---
 
@@ -50,8 +53,4 @@ This document outlines the current feature completion status and lists the pendi
 ---
 
 ### 🔴 Pending Features (Core Backlog)
-
-#### 9. Next-Generation Roadmap & Scalability
-* **Cross-Host Overlay Storage Sharding**: Scale sandboxed workspaces across clustered NFS/EFS mounts with active path replication and dynamic write balancing.
-* **Self-Refactoring Multi-Agent Teams**: Configure autonomous agents that continuously search, refactor, and check in optimization code improvements to their own workspace codebase.
-* **Context-Aware Dynamic Quantization**: Profile model execution load real-time and switch between 4-bit, 8-bit, and FP16 weights dynamically depending on CPU/GPU contention metrics.
+* (All features in the core backlog are fully completed and operational!)
