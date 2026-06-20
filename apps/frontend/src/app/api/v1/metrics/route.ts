@@ -25,8 +25,8 @@ async function getKeyStats(userId: string): Promise<KeyStats> {
       where: { userId },
     });
     const now = new Date();
-    const activeKeys = dbKeys.filter((k) => !k.expiresAt || k.expiresAt > now).length;
-    const revokedKeys = dbKeys.filter((k) => k.expiresAt && k.expiresAt <= now).length;
+    const activeKeys = dbKeys.filter((k: any) => !k.expiresAt || k.expiresAt > now).length;
+    const revokedKeys = dbKeys.filter((k: any) => k.expiresAt && k.expiresAt <= now).length;
     return {
       totalKeys: dbKeys.length,
       activeKeys,

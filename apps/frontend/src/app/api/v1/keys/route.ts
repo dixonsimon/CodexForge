@@ -46,7 +46,7 @@ export async function GET() {
       orderBy: { createdAt: 'desc' },
     });
     const now = new Date();
-    const result = dbKeys.map((k) => ({
+    const result = dbKeys.map((k: any) => ({
       id: k.id,
       name: k.label,
       key: k.displayKey,
