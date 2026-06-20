@@ -182,22 +182,29 @@ export default function ProfilePage() {
               </div>
               
               <div className="flex flex-col text-xs">
-                <div className="flex items-center justify-between py-3.5 border-b border-[#121212]">
-                  <span className="text-neutral-400">Database Connection</span>
-                  {debugInfo ? (
-                    debugInfo.dbConnection === "Success" ? (
-                      <span className="text-emerald-400 font-semibold flex items-center gap-1.5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                        Connected
-                      </span>
+                <div className="flex flex-col gap-1.5 py-3.5 border-b border-[#121212]">
+                  <div className="flex items-center justify-between">
+                    <span className="text-neutral-400">Database Connection</span>
+                    {debugInfo ? (
+                      debugInfo.dbConnection === "Success" ? (
+                        <span className="text-emerald-400 font-semibold flex items-center gap-1.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                          Connected
+                        </span>
+                      ) : (
+                        <span className="text-red-400 font-semibold flex items-center gap-1.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-red-500"></span>
+                          Connection Failed
+                        </span>
+                      )
                     ) : (
-                      <span className="text-red-400 font-semibold flex items-center gap-1.5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-red-500"></span>
-                        Connection Failed
-                      </span>
-                    )
-                  ) : (
-                    <span className="text-neutral-500">Checking...</span>
+                      <span className="text-neutral-500">Checking...</span>
+                    )}
+                  </div>
+                  {debugInfo && debugInfo.dbConnection !== "Success" && debugInfo.dbError && (
+                    <div className="mt-2 text-[10px] text-red-400/90 font-mono bg-red-950/20 border border-red-900/30 rounded-lg p-2.5 break-all whitespace-pre-wrap select-all leading-relaxed">
+                      {debugInfo.dbError}
+                    </div>
                   )}
                 </div>
 
