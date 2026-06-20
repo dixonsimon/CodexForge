@@ -653,7 +653,7 @@ export default function ChatPage() {
       <section className="flex-1 flex flex-col min-w-0 bg-[#060606] relative">
 
         {/* Floating Controller Header */}
-        <div className="h-14 border-b border-[#1f1f1f] px-6 flex items-center justify-between flex-shrink-0 bg-[#060606] gap-4 overflow-x-auto select-none">
+        <div className="h-14 border-b border-[#1f1f1f] px-6 flex items-center justify-between flex-shrink-0 bg-[#060606] gap-4 overflow-visible select-none">
           <div className="flex items-center gap-3">
             <span className="text-xs font-semibold text-white uppercase tracking-wider hidden sm:inline-block">CodexForge Agent</span>
 
