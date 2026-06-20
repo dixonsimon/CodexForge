@@ -840,7 +840,7 @@ export default function ChatPage() {
 
       {/* IDE WORKSPACE PANEL */}
       {showWorkspace && (
-        <section className="w-full md:w-[45%] border-l border-[#1f1f1f] flex flex-col min-w-0 bg-[#060606] flex-shrink-0 animate-slide-in relative">
+        <section className="absolute md:relative inset-0 md:inset-auto md:right-0 md:h-full w-full md:w-[45%] border-l border-[#1f1f1f] flex flex-col min-w-0 bg-[#060606] z-20 md:z-auto flex-shrink-0 animate-slide-in">
 
           {/* Padlock status header overlay */}
           {lockedFiles[activeFileName] && (
@@ -855,6 +855,17 @@ export default function ChatPage() {
           )}
 
           <div className="h-14 border-b border-[#1f1f1f] bg-black px-4 flex items-center justify-between flex-shrink-0 select-none">
+            {/* Close button for mobile inside IDE workspace header */}
+            <button
+              onClick={() => setShowWorkspace(false)}
+              className="md:hidden p-1.5 rounded-xl border border-[#1f1f1f] hover:bg-neutral-900 text-neutral-450 hover:text-white mr-2"
+              title="Close Workspace"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+
             <div className="flex gap-2 overflow-x-auto py-1 items-center flex-1 pr-2">
               {Object.keys(files).map((name) => (
                 <div key={name} className="flex items-center gap-1 bg-neutral-950/40 rounded-xl px-1 border border-neutral-900">

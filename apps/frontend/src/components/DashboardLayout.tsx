@@ -42,6 +42,11 @@ export default function DashboardLayout({ children, initialUser }: DashboardLayo
   }, [initialUser]);
 
   const isChatRoute = pathname?.startsWith("/chat");
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
+
+  useEffect(() => {
+    setIsMobileOpen(false);
+  }, [pathname]);
 
   // Determine if it is a public/unauthenticated landing or utility page.
   const isPublicPage = pathname === "/" || pathname === "/login" || pathname === "/terms" || pathname === "/privacy";
@@ -52,24 +57,46 @@ export default function DashboardLayout({ children, initialUser }: DashboardLayo
   }
 
   return (
-    <div className="flex h-screen w-screen bg-[#060606] text-[#f5f5f5] font-sans antialiased overflow-hidden">
+    <div className="flex h-screen w-screen bg-[#060606] text-[#f5f5f5] font-sans antialiased overflow-hidden relative">
       
+      {/* Backdrop for mobile */}
+      {isMobileOpen && (
+        <div 
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 md:hidden transition-opacity duration-300"
+          onClick={() => setIsMobileOpen(false)}
+        />
+      )}
+
       {/* Dynamic Left Navigation Sidebar */}
-      <aside className="w-64 border-r border-[#1f1f1f] bg-[#0c0c0c] flex flex-col justify-between flex-shrink-0 select-none">
+      <aside className={`fixed md:static inset-y-0 left-0 w-64 border-r border-[#1f1f1f] bg-[#0c0c0c] flex flex-col justify-between flex-shrink-0 select-none z-50 transition-transform duration-300 ease-in-out ${
+        isMobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
+      }`}>
         
         {/* Top Section */}
         <div className="flex flex-col gap-5 p-5 overflow-y-auto flex-1 scrollbar-none">
           {/* Logo Header */}
-          <Link href="/" className="flex items-center gap-2.5 group">
-            <div className="h-8 w-8 rounded-xl bg-neutral-900 border border-[#262626] flex items-center justify-center transition-all group-hover:bg-neutral-800">
-              <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          <div className="flex items-center justify-between w-full">
+            <Link href="/" className="flex items-center gap-2.5 group">
+              <div className="h-8 w-8 rounded-xl bg-neutral-900 border border-[#262626] flex items-center justify-center transition-all group-hover:bg-neutral-800">
+                <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+              </div>
+              <span className="font-semibold text-sm tracking-tight text-white transition-colors">
+                CodexForge
+              </span>
+            </Link>
+            
+            <button
+              onClick={() => setIsMobileOpen(false)}
+              className="md:hidden p-1.5 rounded-xl border border-[#1f1f1f] hover:bg-neutral-900 text-neutral-450 hover:text-white transition-colors"
+              title="Close Menu"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
               </svg>
-            </div>
-            <span className="font-semibold text-sm tracking-tight text-white transition-colors">
-              CodexForge
-            </span>
-          </Link>
+            </button>
+          </div>
 
           {/* Navigation Links */}
           <nav className="flex flex-col gap-1">
@@ -313,10 +340,35 @@ export default function DashboardLayout({ children, initialUser }: DashboardLayo
         </div>
 
       </aside>
-
+      
       {/* Main Panel Content Container */}
-      <main className="flex-1 h-full overflow-y-auto bg-[#060606] relative">
-        {children}
+      <main className="flex-1 h-full flex flex-col min-w-0 overflow-hidden bg-[#060606] relative">
+        
+        {/* Mobile Header Bar */}
+        <header className="flex md:hidden items-center justify-between px-4 py-3 border-b border-[#1f1f1f] bg-[#0c0c0c] z-30 select-none flex-shrink-0">
+          <button
+            onClick={() => setIsMobileOpen(true)}
+            className="p-1.5 rounded-xl border border-[#1f1f1f] hover:bg-neutral-900 text-white active:scale-95 transition-all"
+            title="Open Menu"
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+          
+          <span className="font-semibold text-xs tracking-tight text-white">
+            CodexForge
+          </span>
+          
+          <div className="h-7 w-7 rounded-full bg-neutral-900 border border-[#1f1f1f] flex items-center justify-center text-[10px] font-bold text-white uppercase font-mono">
+            {(user.user_metadata?.full_name || user.email || "?").charAt(0)}
+          </div>
+        </header>
+
+        {/* Content View */}
+        <div className="flex-1 overflow-y-auto min-h-0 relative">
+          {children}
+        </div>
       </main>
 
     </div>

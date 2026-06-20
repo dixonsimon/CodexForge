@@ -1,0 +1,20 @@
+[
+  {
+    "instruction": "Write a Python function 'is_prime' to execute logic matching structural patterns in file 'math_utils.py'.",
+    "response": "def is_prime(n):\n    if n <= 1: return False\n    for i in range(2, int(n**0.5) + 1):\n        if n % i == 0: return False\n    return True",
+    "metadata": {
+      "source_file": "math_utils.py",
+      "language": "python",
+      "code_char_length": 136
+    }
+  },
+  {
+    "instruction": "Create a class named 'ModelLoader' in Python with methods: __init__, load_weights matching structural patterns in file 'model_loader.py'.",
+    "response": "class ModelLoader:\n    def __init__(self, path):\n        self.path = path\n    def load_weights(self):\n        print('Loading weights...')",
+    "metadata": {
+      "source_file": "model_loader.py",
+      "language": "python",
+      "code_char_length": 137
+    }
+  }
+]

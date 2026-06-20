@@ -40,13 +40,17 @@ model Organization {
 }
 
 model OrgMember {
-  id       String       @id @default(uuid())
-  orgId    String
-  org      Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  userId   String
-  user     User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  role     String       @default("DEVELOPER")
-  joinedAt DateTime     @default(now())
+  id               String       @id @default(uuid())
+  orgId            String
+  org              Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  userId           String
+  user             User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role             String       @default("DEVELOPER")
+  joinedAt         DateTime     @default(now())
+  gpuTokenLimit    Int          @default(100000)
+  sandboxTimeLimit Int          @default(3600)
+  gpuTokenUsage    Int          @default(0)
+  sandboxTimeUsage Int          @default(0)
 
   @@unique([orgId, userId])
   @@map("org_members")

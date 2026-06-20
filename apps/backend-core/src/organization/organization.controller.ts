@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Delete, Param, Body, Headers, HttpCode, HttpStatus, BadRequestException } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Param, Body, Headers, HttpCode, HttpStatus, BadRequestException } from '@nestjs/common';
 import { OrganizationService } from './organization.service';
 
 class CreateOrgDto {
@@ -67,5 +67,18 @@ export class OrganizationController {
       throw new BadRequestException('Missing user context header x-user-id');
     }
     await this.orgService.removeMember(userId, orgId, memberId);
+  }
+
+  @Put(':id/members/:memberId/limits')
+  async updateLimits(
+    @Headers('x-user-id') userId: string,
+    @Param('id') orgId: string,
+    @Param('memberId') memberId: string,
+    @Body() body: { gpuLimit: number; sandboxLimit: number }
+  ) {
+    if (!userId) {
+      throw new BadRequestException('Missing user context header x-user-id');
+    }
+    return this.orgService.updateMemberLimits(userId, orgId, memberId, body.gpuLimit, body.sandboxLimit);
   }
 }

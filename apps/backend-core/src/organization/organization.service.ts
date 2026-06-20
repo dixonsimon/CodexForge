@@ -159,6 +159,51 @@ export class OrganizationService {
     });
   }
 
+  async updateMemberLimits(
+    requesterId: string,
+    orgId: string,
+    targetUserId: string,
+    gpuLimit: number,
+    sandboxLimit: number,
+  ) {
+    const org = await this.prisma.organization.findFirst({
+      where: {
+        id: orgId,
+        OR: [
+          { ownerId: requesterId },
+          { members: { some: { userId: requesterId, role: 'ADMIN' } } }
+        ]
+      }
+    });
+
+    if (!org) {
+      throw new ForbiddenException('You do not have administrative access to this organization.');
+    }
+
+    const member = await this.prisma.orgMember.findUnique({
+      where: {
+        orgId_userId: {
+          orgId,
+          userId: targetUserId
+        }
+      }
+    });
+
+    if (!member) {
+      throw new NotFoundException('Member not found in this organization.');
+    }
+
+    return this.prisma.orgMember.update({
+      where: {
+        id: member.id
+      },
+      data: {
+        gpuTokenLimit: gpuLimit,
+        sandboxTimeLimit: sandboxLimit
+      }
+    });
+  }
+
   private async verifyMembership(userId: string, orgId: string) {
     const isMember = await this.prisma.orgMember.findFirst({
       where: { orgId, userId }

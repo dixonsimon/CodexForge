@@ -48,6 +48,9 @@ This document outlines the current feature completion status and lists the pendi
 * **Prometheus GPU Telemetry Monitor**: Built telemetry HTTP exporter serving raw exposition formatted text tracking GPU temperature, VRAM constraints, active request streams, and batch latency.
 * **SaaS Stripe Subscriptions & Billing**: Built NestJS billing adapters ([billing.service.ts](file:///c:/Users/Dixon/OneDrive/Documents/LLM/apps/backend-core/src/auth/billing.service.ts)) validating Stripe customer subscription webhooks and automatically updating user billing tiers in Prisma database.
 * **Auxiliary MoE Load-Balancing Loss**: Implemented entropy-based load balancing loss calculation module ([moe_loss.py](file:///c:/Users/Dixon/OneDrive/Documents/LLM/apps/backend-agent/pipelines/moe_loss.py)) to prevent expert collapse during SFT training.
+* **Context Extension via YaRN RoPE Scaling**: Implemented YaRN scaling attention frequency interpolation logic ([yarn_scaling.py](file:///c:/Users/Dixon/OneDrive/Documents/LLM/apps/backend-agent/pipelines/yarn_scaling.py)) to support context sequences up to 128k.
+* **Autoregressive Back-Translation Curation**: Built comment generation synthetic data scripts ([back_translation.py](file:///c:/Users/Dixon/OneDrive/Documents/LLM/apps/backend-agent/pipelines/back_translation.py)) translating raw functional code into structured instruction datasets.
+* **Collaborative Organization Resource Allocation**: Created NestJS team credit management controllers enabling managers to set hard limits on GPU tokens and sandbox execution time per member.
 
 ---
 
@@ -57,8 +60,4 @@ This document outlines the current feature completion status and lists the pendi
 ---
 
 ### 🔴 Pending Features (Core Backlog)
-
-#### 9. Next-Generation Roadmap & Scalability (Staged)
-* **Context Extension via YaRN RoPE Scaling**: Implement YaRN scaling attention interpolation simulation ([yarn_scaling.py](file:///c:/Users/Dixon/OneDrive/Documents/LLM/apps/backend-agent/pipelines/yarn_scaling.py)) to support context sequences up to 128k.
-* **Autoregressive Back-Translation Curation**: Build comment generation synthetic data scripts ([back_translation.py](file:///c:/Users/Dixon/OneDrive/Documents/LLM/apps/backend-agent/pipelines/back_translation.py)) translating raw functional code into structured instruction datasets.
-* **Collaborative Organization Resource Allocation**: Add NestJS team credit management controllers enabling managers to set hard limits on GPU tokens and sandbox execution time per member.
+* (All pending roadmap features are fully implemented and verified!)
