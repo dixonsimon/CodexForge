@@ -1,0 +1,8 @@
+{
+  "quantization_config": {
+    "bits": 4,
+    "group_size": 128,
+    "quant_method": "awq",
+    "version": "gemini-awq-v1"
+  }
+}

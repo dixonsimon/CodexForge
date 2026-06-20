@@ -32,6 +32,9 @@ This repository has progressed from a design blueprint into a **fully implemente
 - **AWS Firecracker VM Pool Allocations**: Sandbox Pool Manager balancing pool sizes, active state slots, and IP resolutions ([sandbox_pool_manager.py](file:///c:/Users/Dixon/OneDrive/Documents/LLM/apps/backend-agent/pipelines/sandbox_pool_manager.py)).
 - **Local Package Mirror Registry**: Offline PyPI/npm mirror cache server whitelisting downloads and resolving library sources offline ([mirror_cache.py](file:///c:/Users/Dixon/OneDrive/Documents/LLM/apps/backend-agent/pipelines/mirror_cache.py)).
 - **Compiler Feedback RLCF Loops**: Reinforcement learning pipeline loop running generated candidate code inside VM slots and utilizing compiler rewards to compute policy loss values ([rlcf_sandbox_loop.py](file:///c:/Users/Dixon/OneDrive/Documents/LLM/apps/backend-agent/pipelines/rlcf_sandbox_loop.py)).
+- **AWQ 4-Bit Weight Quantization**: Invokes the quantization service to compress model parameters and export optimized AWQ configs ([quantization_runner.py](file:///c:/Users/Dixon/OneDrive/Documents/LLM/apps/backend-agent/pipelines/quantization_runner.py)).
+- **Speculative Decoding Speedup**: Evaluates draft-model parallel token verification, validating throughput speeds against the >60 tokens/second threshold ([speculative_decoding_runner.py](file:///c:/Users/Dixon/OneDrive/Documents/LLM/apps/backend-agent/pipelines/speculative_decoding_runner.py)).
+- **Sandbox Security Penetration**: Asserts container isolation boundaries, testing root filesystem write lockouts, outbound netfilter rules, and kernel hypervisor namespaces ([sandbox_penetration_test.py](file:///c:/Users/Dixon/OneDrive/Documents/LLM/apps/backend-agent/pipelines/sandbox_penetration_test.py)).
 
 ---
 
@@ -106,6 +109,15 @@ python pipelines/back_translation.py
 
 # Run MoE Load Balancing Gating Loss
 python pipelines/moe_loss.py
+
+# Run AWQ 4-Bit Weight Quantization Pipeline
+python pipelines/quantization_runner.py
+
+# Run Speculative Decoding Speedup Verification
+python pipelines/speculative_decoding_runner.py
+
+# Run Sandbox Security Penetration Test
+python pipelines/sandbox_penetration_test.py
 ```
 
 ---
