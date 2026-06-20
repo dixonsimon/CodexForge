@@ -70,3 +70,49 @@ export async function POST(req: Request, { params }: any) {
     return NextResponse.json({ error: err.message || 'Database error.' }, { status: 500 });
   }
 }
+
+export async function DELETE(req: Request, { params }: any) {
+  const user = await getAuthenticatedUser();
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const { id: orgId } = await params;
+
+  try {
+    const { userId } = await req.json();
+    if (!userId) {
+      return NextResponse.json({ error: 'User ID is required.' }, { status: 400 });
+    }
+
+    const org = await prisma.organization.findFirst({
+      where: {
+        id: orgId,
+        OR: [
+          { ownerId: user.id },
+          { members: { some: { userId: user.id, role: 'ADMIN' } } }
+        ]
+      }
+    });
+
+    if (!org) {
+      return NextResponse.json({ error: 'Organization not found or access denied.' }, { status: 404 });
+    }
+
+    if (org.ownerId === userId) {
+      return NextResponse.json({ error: 'The organization owner cannot be removed.' }, { status: 400 });
+    }
+
+    await prisma.orgMember.deleteMany({
+      where: {
+        orgId: org.id,
+        userId: userId
+      }
+    });
+
+    return NextResponse.json({ success: true, message: 'Member removed successfully.' });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message || 'Database error.' }, { status: 500 });
+  }
+}
+

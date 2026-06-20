@@ -87,3 +87,51 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: err.message || 'Database error.' }, { status: 500 });
   }
 }
+
+export async function DELETE(req: Request) {
+  const user = await getAuthenticatedUser();
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  try {
+    const { projectId } = await req.json();
+    if (!projectId) {
+      return NextResponse.json({ error: 'Project ID is required.' }, { status: 400 });
+    }
+
+    const project = await prisma.project.findUnique({
+      where: { id: projectId },
+      include: { org: true }
+    });
+
+    if (!project) {
+      return NextResponse.json({ error: 'Project not found.' }, { status: 404 });
+    }
+
+    const member = await prisma.orgMember.findFirst({
+      where: {
+        orgId: project.orgId,
+        userId: user.id,
+        role: { in: ['ADMIN', 'DEVELOPER'] }
+      }
+    });
+
+    if (project.org.ownerId !== user.id && !member) {
+      return NextResponse.json({ error: 'Access denied.' }, { status: 403 });
+    }
+
+    await prisma.$transaction([
+      prisma.fileIndex.deleteMany({ where: { projectId } }),
+      prisma.fileLock.deleteMany({ where: { projectId } }),
+      prisma.message.deleteMany({ where: { conversation: { projectId } } }),
+      prisma.conversation.deleteMany({ where: { projectId } }),
+      prisma.project.delete({ where: { id: projectId } })
+    ]);
+
+    return NextResponse.json({ success: true, message: 'Project deleted successfully.' });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message || 'Database error.' }, { status: 500 });
+  }
+}
+

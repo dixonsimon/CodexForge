@@ -264,6 +264,19 @@ export default function ChatPage() {
   const [syncStatus, setSyncStatus] = useState("Not Synced");
 
   const supabase = createClient();
+  const [user, setUser] = useState<any>(null);
+
+  useEffect(() => {
+    supabase.auth.getUser().then((res: any) => {
+      const u = res?.data?.user;
+      if (u) {
+        setUser(u);
+      }
+    });
+  }, [supabase.auth]);
+
+  const rawUserName = user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email?.split("@")[0] || "Developer";
+  const cleanUserName = rawUserName.split(" ").map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
 
   const {
     setConversations: setSidebarConversations,
@@ -991,7 +1004,7 @@ export default function ChatPage() {
 
                 {/* Premium Gradient Header */}
                 <h2 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white via-neutral-200 to-neutral-400">
-                  Hello, Dixon. How can I help you today?
+                  Hello, {cleanUserName}. How can I help you today?
                 </h2>
 
                 <p className="text-neutral-500 text-xs mt-2 max-w-md leading-relaxed">
