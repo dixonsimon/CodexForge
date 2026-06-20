@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 interface ApiKey {
   id: string;
@@ -16,6 +16,21 @@ export default function KeysPage() {
   const [newKeyName, setNewKeyName] = useState("");
   const [newKeyScope, setNewKeyScope] = useState("read:model");
   const [generatedKey, setGeneratedKey] = useState<string | null>(null);
+
+  const [isScopeOpen, setIsScopeOpen] = useState(false);
+  const scopeRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (scopeRef.current && !scopeRef.current.contains(event.target as Node)) {
+        setIsScopeOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
   // Fetch keys from persistent backend on mount
   useEffect(() => {
@@ -145,16 +160,89 @@ export default function KeysPage() {
 
             <div className="flex flex-col gap-1.5">
               <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest">Scope Level</label>
-              <div className="relative">
-                <select
-                  value={newKeyScope}
-                  onChange={(e) => setNewKeyScope(e.target.value)}
-                  className="w-full bg-black border border-[#1f1f1f] rounded-2xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-neutral-500 transition-colors appearance-none cursor-pointer font-semibold"
+              <div className="relative" ref={scopeRef}>
+                <button
+                  type="button"
+                  onClick={() => setIsScopeOpen(!isScopeOpen)}
+                  className="w-full flex items-center justify-between bg-black hover:bg-neutral-950 border border-[#1f1f1f] hover:border-neutral-800 rounded-2xl px-4 py-2.5 text-xs text-white focus:outline-none cursor-pointer transition-all duration-200"
                 >
-                  <option value="read:model">read:model (Inference Only)</option>
-                  <option value="read:model, write:sandbox">read:model, write:sandbox</option>
-                  <option value="admin:all">admin:all (Root Administrator)</option>
-                </select>
+                  <span className="font-semibold">
+                    {newKeyScope === "read:model" && "read:model (Inference Only)"}
+                    {newKeyScope === "read:model, write:sandbox" && "read:model, write:sandbox"}
+                    {newKeyScope === "admin:all" && "admin:all (Root Administrator)"}
+                  </span>
+                  <svg
+                    className={`w-3.5 h-3.5 transition-transform duration-200 text-neutral-400 ${isScopeOpen ? "rotate-180" : ""}`}
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+
+                {isScopeOpen && (
+                  <div className="absolute left-0 right-0 mt-2 rounded-2xl border border-[#222] bg-[#0c0c0c]/95 backdrop-blur-md p-1.5 shadow-2xl shadow-black/90 z-[100] transition-all duration-200 origin-top">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setNewKeyScope("read:model");
+                        setIsScopeOpen(false);
+                      }}
+                      className={`w-full flex items-center justify-between px-3 py-2 text-left text-xs rounded-xl cursor-pointer transition-all duration-200 ${
+                        newKeyScope === "read:model"
+                          ? "bg-neutral-850 text-white font-semibold"
+                          : "text-neutral-400 hover:bg-neutral-900 hover:text-neutral-200"
+                      }`}
+                    >
+                      <span>read:model (Inference Only)</span>
+                      {newKeyScope === "read:model" && (
+                        <svg className="w-3.5 h-3.5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                        </svg>
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setNewKeyScope("read:model, write:sandbox");
+                        setIsScopeOpen(false);
+                      }}
+                      className={`w-full flex items-center justify-between px-3 py-2 text-left text-xs rounded-xl cursor-pointer transition-all duration-200 ${
+                        newKeyScope === "read:model, write:sandbox"
+                          ? "bg-neutral-850 text-white font-semibold"
+                          : "text-neutral-400 hover:bg-neutral-900 hover:text-neutral-200"
+                      }`}
+                    >
+                      <span>read:model, write:sandbox</span>
+                      {newKeyScope === "read:model, write:sandbox" && (
+                        <svg className="w-3.5 h-3.5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                        </svg>
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setNewKeyScope("admin:all");
+                        setIsScopeOpen(false);
+                      }}
+                      className={`w-full flex items-center justify-between px-3 py-2 text-left text-xs rounded-xl cursor-pointer transition-all duration-200 ${
+                        newKeyScope === "admin:all"
+                          ? "bg-neutral-850 text-white font-semibold"
+                          : "text-neutral-400 hover:bg-neutral-900 hover:text-neutral-200"
+                      }`}
+                    >
+                      <span>admin:all (Root Administrator)</span>
+                      {newKeyScope === "admin:all" && (
+                        <svg className="w-3.5 h-3.5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                        </svg>
+                      )}
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
 

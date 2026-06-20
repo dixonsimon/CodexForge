@@ -14,11 +14,15 @@ const redisClient = getRedisClient();
 let isRedisReady = false;
 redisClient.on('connect', () => {
   isRedisReady = true;
-  console.log('[Redis] Connected successfully.');
+  if (process.env.NEXT_PHASE !== 'phase-production-build') {
+    console.log('[Redis] Connected successfully.');
+  }
 });
 redisClient.on('error', (err) => {
   isRedisReady = false;
-  console.warn('[Redis] Connection offline, using in-memory fallbacks. Error:', err.message);
+  if (process.env.NEXT_PHASE !== 'phase-production-build') {
+    console.warn('[Redis] Connection offline, using in-memory fallbacks. Error:', err.message);
+  }
 });
 
 // Declarations for fallback variables
@@ -429,7 +433,7 @@ export async function POST(req: Request) {
           contents[contents.length - 1].parts[0].text += context;
         }
 
-        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelToUse}:streamGenerateContent?key=${process.env.GEMINI_API_KEY}`, {
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelToUse}:streamGenerateContent?key=${process.env.GEMINI_API_KEY}&alt=sse`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -552,27 +556,23 @@ export async function POST(req: Request) {
                 if (!cleanLine) continue;
 
                 if (provider === 'gemini') {
+                  let lineToParse = cleanLine;
+                  if (lineToParse.startsWith("data:")) {
+                    lineToParse = lineToParse.substring(5).trim();
+                  } else {
+                    lineToParse = lineToParse.replace(/^,/, '').replace(/^\[/, '').replace(/\]$/, '').trim();
+                  }
+
+                  if (!lineToParse) continue;
                   try {
-                    const cleaned = cleanLine.replace(/^,/, '').replace(/^\[/, '').replace(/\]$/, '').trim();
-                    if (!cleaned) continue;
-                    const obj = JSON.parse(cleaned);
+                    const obj = JSON.parse(lineToParse);
                     const text = obj.candidates?.[0]?.content?.parts?.[0]?.text;
                     if (text) {
                       assistantContent += text;
                       sendChunk({ token: text, finish_reason: null });
                     }
-                  } catch {
-                    if (cleanLine.startsWith("data:")) {
-                      const dataStr = cleanLine.substring(5).trim();
-                      try {
-                        const obj = JSON.parse(dataStr);
-                        const text = obj.candidates?.[0]?.content?.parts?.[0]?.text;
-                        if (text) {
-                          assistantContent += text;
-                          sendChunk({ token: text, finish_reason: null });
-                        }
-                      } catch { }
-                    }
+                  } catch (e) {
+                    // Ignore parse errors for structural formatting elements
                   }
                   continue;
                 }

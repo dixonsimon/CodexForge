@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { useSidebar } from "@/context/SidebarContext";
 import Editor from "@monaco-editor/react";
@@ -79,6 +79,26 @@ const agentSteps = [
 export default function ChatPage() {
   const [selectedModel, setSelectedModel] = useState("CodexForge-MoE");
   const [selectedMode, setSelectedMode] = useState<'general' | 'developer' | 'creative' | 'tutor'>("general");
+
+  const [isModelOpen, setIsModelOpen] = useState(false);
+  const [isModeOpen, setIsModeOpen] = useState(false);
+  const modelRef = useRef<HTMLDivElement>(null);
+  const modeRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (modelRef.current && !modelRef.current.contains(event.target as Node)) {
+        setIsModelOpen(false);
+      }
+      if (modeRef.current && !modeRef.current.contains(event.target as Node)) {
+        setIsModeOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
   const [files, setFiles] = useState<Record<string, FileItem>>({
     "main.py": {
@@ -638,30 +658,186 @@ export default function ChatPage() {
             <span className="text-xs font-semibold text-white uppercase tracking-wider hidden sm:inline-block">CodexForge Agent</span>
 
             {/* Model selection dropdown */}
-            <div className="relative">
-              <select
-                value={selectedModel}
-                onChange={(e) => handleModelChange(e.target.value)}
-                className="bg-neutral-900 hover:bg-neutral-900/80 border border-[#1f1f1f] rounded-xl text-neutral-300 px-3 py-1.5 text-xs font-medium focus:outline-none focus:border-neutral-700 cursor-pointer transition-colors"
+            <div className="relative" ref={modelRef}>
+              <button
+                onClick={() => setIsModelOpen(!isModelOpen)}
+                className="flex items-center gap-2 bg-neutral-900/90 hover:bg-neutral-950 hover:text-white border border-[#1f1f1f] hover:border-neutral-800 rounded-xl text-neutral-300 px-3 py-1.5 text-xs font-medium focus:outline-none cursor-pointer transition-all duration-200 shadow-md active:scale-95"
               >
-                <option value="CodexForge-MoE">CodexForge MoE (Default)</option>
-                <option value="gpt-4o">ChatGPT (gpt-4o)</option>
-                <option value="gemini-3.5-flash">Gemini (gemini-3.5-flash)</option>
-              </select>
+                <span>
+                  {selectedModel === "CodexForge-MoE" && "CodexForge MoE (Default)"}
+                  {selectedModel === "gpt-4o" && "ChatGPT (gpt-4o)"}
+                  {selectedModel === "gemini-3.5-flash" && "Gemini (gemini-3.5-flash)"}
+                </span>
+                <svg
+                  className={`w-3.5 h-3.5 transition-transform duration-200 text-neutral-400 ${isModelOpen ? "rotate-180" : ""}`}
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+
+              {isModelOpen && (
+                <div className="absolute left-0 mt-2 w-56 rounded-2xl border border-[#222] bg-[#0c0c0c]/95 backdrop-blur-md p-1.5 shadow-2xl shadow-black/90 z-[100] transition-all duration-200 origin-top-left">
+                  <button
+                    onClick={() => {
+                      handleModelChange("CodexForge-MoE");
+                      setIsModelOpen(false);
+                    }}
+                    className={`w-full flex items-center justify-between px-3 py-2 text-left text-xs rounded-xl cursor-pointer transition-all duration-200 ${
+                      selectedModel === "CodexForge-MoE"
+                        ? "bg-neutral-850 text-white font-semibold"
+                        : "text-neutral-400 hover:bg-neutral-900 hover:text-neutral-200"
+                    }`}
+                  >
+                    <span>CodexForge MoE (Default)</span>
+                    {selectedModel === "CodexForge-MoE" && (
+                      <svg className="w-3.5 h-3.5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                    )}
+                  </button>
+                  <button
+                    onClick={() => {
+                      handleModelChange("gpt-4o");
+                      setIsModelOpen(false);
+                    }}
+                    className={`w-full flex items-center justify-between px-3 py-2 text-left text-xs rounded-xl cursor-pointer transition-all duration-200 ${
+                      selectedModel === "gpt-4o"
+                        ? "bg-neutral-850 text-white font-semibold"
+                        : "text-neutral-400 hover:bg-neutral-900 hover:text-neutral-200"
+                    }`}
+                  >
+                    <span>ChatGPT (gpt-4o)</span>
+                    {selectedModel === "gpt-4o" && (
+                      <svg className="w-3.5 h-3.5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                    )}
+                  </button>
+                  <button
+                    onClick={() => {
+                      handleModelChange("gemini-3.5-flash");
+                      setIsModelOpen(false);
+                    }}
+                    className={`w-full flex items-center justify-between px-3 py-2 text-left text-xs rounded-xl cursor-pointer transition-all duration-200 ${
+                      selectedModel === "gemini-3.5-flash"
+                        ? "bg-neutral-850 text-white font-semibold"
+                        : "text-neutral-400 hover:bg-neutral-900 hover:text-neutral-200"
+                    }`}
+                  >
+                    <span>Gemini (gemini-3.5-flash)</span>
+                    {selectedModel === "gemini-3.5-flash" && (
+                      <svg className="w-3.5 h-3.5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                    )}
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Mode selection dropdown */}
-            <div className="relative">
-              <select
-                value={selectedMode}
-                onChange={(e) => handleModeChange(e.target.value as any)}
-                className="bg-neutral-900 hover:bg-neutral-900/80 border border-[#1f1f1f] rounded-xl text-neutral-300 px-3 py-1.5 text-xs font-medium focus:outline-none focus:border-neutral-700 cursor-pointer transition-colors"
+            <div className="relative" ref={modeRef}>
+              <button
+                onClick={() => setIsModeOpen(!isModeOpen)}
+                className="flex items-center gap-2 bg-neutral-900/90 hover:bg-neutral-950 hover:text-white border border-[#1f1f1f] hover:border-neutral-800 rounded-xl text-neutral-300 px-3 py-1.5 text-xs font-medium focus:outline-none cursor-pointer transition-all duration-200 shadow-md active:scale-95"
               >
-                <option value="general">💬 General Assistant</option>
-                <option value="developer">💻 Code Specialist</option>
-                <option value="creative">✍️ Creative Writer</option>
-                <option value="tutor">🎓 Socratic Tutor</option>
-              </select>
+                <span>
+                  {selectedMode === "general" && "💬 General Assistant"}
+                  {selectedMode === "developer" && "💻 Code Specialist"}
+                  {selectedMode === "creative" && "✍️ Creative Writer"}
+                  {selectedMode === "tutor" && "🎓 Socratic Tutor"}
+                </span>
+                <svg
+                  className={`w-3.5 h-3.5 transition-transform duration-200 text-neutral-400 ${isModeOpen ? "rotate-180" : ""}`}
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+
+              {isModeOpen && (
+                <div className="absolute left-0 mt-2 w-56 rounded-2xl border border-[#222] bg-[#0c0c0c]/95 backdrop-blur-md p-1.5 shadow-2xl shadow-black/90 z-[100] transition-all duration-200 origin-top-left">
+                  <button
+                    onClick={() => {
+                      handleModeChange("general");
+                      setIsModeOpen(false);
+                    }}
+                    className={`w-full flex items-center justify-between px-3 py-2 text-left text-xs rounded-xl cursor-pointer transition-all duration-200 ${
+                      selectedMode === "general"
+                        ? "bg-neutral-850 text-white font-semibold"
+                        : "text-neutral-400 hover:bg-neutral-900 hover:text-neutral-200"
+                    }`}
+                  >
+                    <span>💬 General Assistant</span>
+                    {selectedMode === "general" && (
+                      <svg className="w-3.5 h-3.5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                    )}
+                  </button>
+                  <button
+                    onClick={() => {
+                      handleModeChange("developer");
+                      setIsModeOpen(false);
+                    }}
+                    className={`w-full flex items-center justify-between px-3 py-2 text-left text-xs rounded-xl cursor-pointer transition-all duration-200 ${
+                      selectedMode === "developer"
+                        ? "bg-neutral-850 text-white font-semibold"
+                        : "text-neutral-400 hover:bg-neutral-900 hover:text-neutral-200"
+                    }`}
+                  >
+                    <span>💻 Code Specialist</span>
+                    {selectedMode === "developer" && (
+                      <svg className="w-3.5 h-3.5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                    )}
+                  </button>
+                  <button
+                    onClick={() => {
+                      handleModeChange("creative");
+                      setIsModeOpen(false);
+                    }}
+                    className={`w-full flex items-center justify-between px-3 py-2 text-left text-xs rounded-xl cursor-pointer transition-all duration-200 ${
+                      selectedMode === "creative"
+                        ? "bg-neutral-850 text-white font-semibold"
+                        : "text-neutral-400 hover:bg-neutral-900 hover:text-neutral-200"
+                    }`}
+                  >
+                    <span>✍️ Creative Writer</span>
+                    {selectedMode === "creative" && (
+                      <svg className="w-3.5 h-3.5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                    )}
+                  </button>
+                  <button
+                    onClick={() => {
+                      handleModeChange("tutor");
+                      setIsModeOpen(false);
+                    }}
+                    className={`w-full flex items-center justify-between px-3 py-2 text-left text-xs rounded-xl cursor-pointer transition-all duration-200 ${
+                      selectedMode === "tutor"
+                        ? "bg-neutral-850 text-white font-semibold"
+                        : "text-neutral-400 hover:bg-neutral-900 hover:text-neutral-200"
+                    }`}
+                  >
+                    <span>🎓 Socratic Tutor</span>
+                    {selectedMode === "tutor" && (
+                      <svg className="w-3.5 h-3.5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                    )}
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 

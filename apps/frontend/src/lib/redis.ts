@@ -6,7 +6,9 @@ export function getRedisClient(): Redis | Cluster {
   const connectTimeout = 2000;
 
   if (mode === 'cluster') {
-    console.log('[Redis] Initializing in Cluster Mode');
+    if (process.env.NEXT_PHASE !== 'phase-production-build') {
+      console.log('[Redis] Initializing in Cluster Mode');
+    }
     const nodesStr = process.env.REDIS_NODES || '127.0.0.1:6379';
     const nodes: ClusterNode[] = nodesStr.split(',').map(node => {
       const [host, port] = node.trim().split(':');
@@ -20,7 +22,9 @@ export function getRedisClient(): Redis | Cluster {
       clusterRetryStrategy: () => null,
     });
   } else if (mode === 'sentinel') {
-    console.log('[Redis] Initializing in Sentinel Mode');
+    if (process.env.NEXT_PHASE !== 'phase-production-build') {
+      console.log('[Redis] Initializing in Sentinel Mode');
+    }
     const sentinelsStr = process.env.REDIS_SENTINELS || '127.0.0.1:26379';
     const sentinels = sentinelsStr.split(',').map(sentinel => {
       const [host, port] = sentinel.trim().split(':');
@@ -35,7 +39,9 @@ export function getRedisClient(): Redis | Cluster {
       retryStrategy: () => null,
     });
   } else {
-    console.log(`[Redis] Initializing in Standalone Mode connecting to ${url}`);
+    if (process.env.NEXT_PHASE !== 'phase-production-build') {
+      console.log(`[Redis] Initializing in Standalone Mode connecting to ${url}`);
+    }
     return new Redis(url, {
       connectTimeout,
       maxRetriesPerRequest: 1,
