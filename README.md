@@ -14,6 +14,7 @@ This repository has progressed from a design blueprint into a **fully implemente
 - **Telemetry & Latency Dashboards**: Live performance charts powered by `Recharts` showing tokens per second throughput, sub-system response times, and system load.
 - **Developer Credentials**: In-browser API key management supporting granular scopes (`read:model`, `write:sandbox`, `admin:all`).
 - **Responsive Mobile Layout**: Fully optimized for mobile viewports with smooth slide-out sidebar drawers, overlays, and responsive padding systems.
+- **Developer Docs & Legal Compliance**: Built-in `/docs` page showcasing detailed API guides, `/terms` outlining VM security boundaries, and a GDPR-compliant `/privacy` policy with user-initiated data wipe (`/api/v1/user/delete-data`) and account deletion (`/api/v1/user/delete-account`) actions.
 
 ### 2. Multi-Tenant SaaS Business Engine (`apps/backend-core`)
 - **Stripe Webhook Billing**: Automatic synchronization of user subscription events to update DB billing levels (`free`, `developer`, `enterprise`).
