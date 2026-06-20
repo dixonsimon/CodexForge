@@ -165,6 +165,19 @@ export default function DashboardLayout({ children, initialUser }: DashboardLayo
               </svg>
               Documentation
             </Link>
+            <Link
+              href="/profile"
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all ${
+                pathname === "/profile"
+                  ? "bg-white text-black font-semibold"
+                  : "text-neutral-400 hover:text-white hover:bg-neutral-900/50"
+              }`}
+            >
+              <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
+              Developer Profile
+            </Link>
           </nav>
 
           {/* Conditional Chat Section (Recent Chats & RAG indexer sync buttons) */}
@@ -366,7 +379,7 @@ export default function DashboardLayout({ children, initialUser }: DashboardLayo
         </header>
 
         {/* Content View */}
-        <div className="flex-1 overflow-y-auto min-h-0 relative">
+        <div className="flex-1 overflow-y-auto min-h-0 relative animate-fade-in" key={pathname}>
           {children}
         </div>
       </main>

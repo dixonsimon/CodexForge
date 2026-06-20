@@ -346,8 +346,40 @@ export async function POST(req: Request) {
         }
 
         if (!activeConversationId) {
-          const titleSnippet = lastMessage.substring(0, 30).trim();
-          const title = titleSnippet ? `${titleSnippet}...` : 'New Conversation';
+          let title = 'New Conversation';
+          
+          if (lastMessage) {
+            if (process.env.GEMINI_API_KEY) {
+              try {
+                const titleRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    contents: [{
+                      parts: [{ text: `Based on this user message, generate a 2-4 word conversation title summarizing the topic. Output ONLY the raw title without any formatting, quotes, or markdown. User message: "${lastMessage}"` }]
+                    }],
+                    generationConfig: { temperature: 0.3, maxOutputTokens: 10 }
+                  })
+                });
+
+                if (titleRes.ok) {
+                  const titleJson = await titleRes.json();
+                  const generatedTitle = titleJson.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+                  if (generatedTitle) {
+                    title = generatedTitle.replace(/^["']|["']$/g, '').trim();
+                  }
+                }
+              } catch (err) {
+                console.warn("Failed to generate dynamic title with Gemini:", err);
+              }
+            }
+
+            if (title === 'New Conversation' || !title) {
+              const titleSnippet = lastMessage.substring(0, 30).trim();
+              title = titleSnippet ? `${titleSnippet}...` : 'New Conversation';
+            }
+          }
+
           const newConv = await prisma.conversation.create({
             data: {
               userId: user.id,

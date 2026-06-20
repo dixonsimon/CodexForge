@@ -49,6 +49,133 @@ const suggestionsByMode = {
   ],
 };
 
+const renderFormattedText = (text: string) => {
+  if (!text) return null;
+
+  const lines = text.split("\n");
+  let inList = false;
+  const listItems: React.ReactNode[] = [];
+  const elements: React.ReactNode[] = [];
+
+  const parseInlineElements = (lineText: string, keyPrefix: string) => {
+    const parts: React.ReactNode[] = [];
+    let currentIdx = 0;
+    let i = 0;
+    
+    while (i < lineText.length) {
+      if (lineText[i] === "`") {
+        const nextBacktick = lineText.indexOf("`", i + 1);
+        if (nextBacktick !== -1) {
+          if (i > currentIdx) {
+            parts.push(lineText.substring(currentIdx, i));
+          }
+          const codeContent = lineText.substring(i + 1, nextBacktick);
+          parts.push(
+            <code key={`code-${keyPrefix}-${i}`} className="font-mono text-[10px] bg-neutral-900 border border-[#1f1f1f] rounded px-1.5 py-0.5 text-neutral-250 mx-0.5 font-semibold">
+              {codeContent}
+            </code>
+          );
+          i = nextBacktick + 1;
+          currentIdx = i;
+          continue;
+        }
+      }
+      
+      if (lineText[i] === "*" && lineText[i + 1] === "*") {
+        const nextBold = lineText.indexOf("**", i + 2);
+        if (nextBold !== -1) {
+          if (i > currentIdx) {
+            parts.push(lineText.substring(currentIdx, i));
+          }
+          const boldContent = lineText.substring(i + 2, nextBold);
+          parts.push(
+            <strong key={`bold-${keyPrefix}-${i}`} className="font-bold text-white mx-0.5">
+              {boldContent}
+            </strong>
+          );
+          i = nextBold + 2;
+          currentIdx = i;
+          continue;
+        }
+      }
+      
+      i++;
+    }
+    
+    if (currentIdx < lineText.length) {
+      parts.push(lineText.substring(currentIdx));
+    }
+    
+    return parts.length > 0 ? parts : lineText;
+  };
+
+  const flushList = (index: number) => {
+    if (listItems.length > 0) {
+      elements.push(
+        <ul key={`list-${index}`} className="list-disc pl-5 my-2 flex flex-col gap-1 select-text">
+          {[...listItems]}
+        </ul>
+      );
+      listItems.length = 0;
+      inList = false;
+    }
+  };
+
+  lines.forEach((line, index) => {
+    const trimmed = line.trim();
+
+    if (trimmed.startsWith("### ")) {
+      flushList(index);
+      elements.push(
+        <h3 key={`h3-${index}`} className="text-xs font-bold text-white mt-4 mb-1.5 first:mt-0 uppercase tracking-wider select-text">
+          {parseInlineElements(trimmed.substring(4), `h3-${index}`)}
+        </h3>
+      );
+    } else if (trimmed.startsWith("## ")) {
+      flushList(index);
+      elements.push(
+        <h2 key={`h2-${index}`} className="text-sm font-bold text-white mt-5 mb-2 first:mt-0 select-text border-b border-[#1f1f1f] pb-1">
+          {parseInlineElements(trimmed.substring(3), `h2-${index}`)}
+        </h2>
+      );
+    } else if (trimmed.startsWith("# ")) {
+      flushList(index);
+      elements.push(
+        <h1 key={`h1-${index}`} className="text-base font-bold text-white mt-6 mb-3 first:mt-0 select-text">
+          {parseInlineElements(trimmed.substring(2), `h1-${index}`)}
+        </h1>
+      );
+    } else if (trimmed.startsWith("- ") || trimmed.startsWith("* ")) {
+      inList = true;
+      listItems.push(
+        <li key={`li-${index}-${listItems.length}`} className="text-neutral-300 leading-relaxed text-xs pl-0.5 select-text">
+          {parseInlineElements(trimmed.substring(2), `li-${index}`)}
+        </li>
+      );
+    } else {
+      if (inList && trimmed === "") {
+        flushList(index);
+      } else if (inList && !trimmed.startsWith("- ") && !trimmed.startsWith("* ")) {
+        flushList(index);
+        elements.push(
+          <p key={`p-${index}`} className="my-1.5 text-xs text-neutral-300 leading-relaxed select-text min-h-[1em] whitespace-pre-wrap">
+            {parseInlineElements(line, `p-${index}`)}
+          </p>
+        );
+      } else {
+        elements.push(
+          <p key={`p-${index}`} className="my-1.5 text-xs text-neutral-300 leading-relaxed select-text min-h-[1em] whitespace-pre-wrap">
+            {parseInlineElements(line, `p-${index}`)}
+          </p>
+        );
+      }
+    }
+  });
+
+  flushList(lines.length);
+  return elements;
+};
+
 const systemPromptByMode = {
   general: "You are CodexForge AI, a powerful, helpful and general-purpose conversational LLM assistant. You can write stories, analyze concepts, draft emails, explain complex ideas, chat casually, and write/run scripts. You are equipped with a Python/Node.js coding sandbox workspace panel on the right. When the user asks for code, provide it inside markdown blocks with clear explanations. You can help with any topic, not just programming.",
   developer: "You are CodexForge Software Engineer, a world-class coding assistant. You specialize in clean, efficient, well-documented code. Your primary goal is to help the user write, debug, and execute code in their sandboxed workspace. Focus on technical details, structure, performance, and explain the code concisely.",
@@ -886,7 +1013,7 @@ export default function ChatPage() {
                         : "bg-[#0e0e0e] border-[#1f1f1f] text-neutral-300 rounded-tl-none"
                       }`}
                   >
-                    <p className="whitespace-pre-wrap select-text">{msg.text}</p>
+                    {renderFormattedText(msg.text)}
 
                     {codeSnippet && (
                       <div className="mt-4 flex flex-col gap-2 rounded-2xl bg-black border border-[#1f1f1f] overflow-hidden select-none">
