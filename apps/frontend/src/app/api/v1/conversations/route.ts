@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getAuthenticatedUser } from '@/utils/supabase/auth';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   const user = await getAuthenticatedUser();
   if (!user) {
