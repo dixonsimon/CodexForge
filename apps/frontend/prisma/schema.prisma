@@ -23,6 +23,7 @@ model User {
   conversations      Conversation[]
   apiKeys            ApiKey[]
   fileLocks          FileLock[]
+  externalKeys       ExternalKey[]
 
   @@map("users")
 }
@@ -146,3 +147,20 @@ model FileLock {
   @@unique([projectId, filePath])
   @@map("file_locks")
 }
+
+model ExternalKey {
+  id           String   @id @default(uuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider     String   // 'gemini' | 'openai' | 'anthropic' | 'deepseek' | 'custom' or custom typed provider
+  label        String
+  apiKey       String
+  baseUrl      String?
+  defaultModel String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([userId, provider])
+  @@map("external_keys")
+}
+

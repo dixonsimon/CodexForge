@@ -222,7 +222,7 @@ export async function POST(req: Request) {
   }
   const spanId = generateHexId(8);
   const startTime = Date.now();
-  let provider: 'gemini' | 'openai' | 'mock' = 'mock';
+  let provider: 'gemini' | 'openai' | 'anthropic' | 'deepseek' | 'mock' = 'mock';
   let modelToUse = 'CodexForge-MoE';
 
   const user = await getAuthenticatedUser();
@@ -235,6 +235,29 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Too Many Requests. Rate limit exceeded (60 requests/minute).' }, { status: 429 });
   }
 
+  // Load user custom external API keys from DB
+  const keysMap = new Map<string, { apiKey: string; baseUrl?: string | null; defaultModel?: string | null }>();
+  try {
+    const dbKeys = await prisma.externalKey.findMany({
+      where: { userId: user.id }
+    });
+    for (const k of dbKeys) {
+      const cleanProv = k.provider.toLowerCase().trim();
+      keysMap.set(cleanProv, {
+        apiKey: k.apiKey,
+        baseUrl: k.baseUrl,
+        defaultModel: k.defaultModel
+      });
+    }
+  } catch (dbKeysErr) {
+    console.warn("Failed to load user external keys:", dbKeysErr);
+  }
+
+  const geminiKey = keysMap.get('gemini')?.apiKey || process.env.GEMINI_API_KEY || '';
+  const openAIKey = keysMap.get('openai')?.apiKey || keysMap.get('chatgpt')?.apiKey || process.env.OPENAI_API_KEY || '';
+  const anthropicKey = keysMap.get('anthropic')?.apiKey || keysMap.get('claude')?.apiKey || '';
+  const deepseekKey = keysMap.get('deepseek')?.apiKey || '';
+
   try {
     const body = await req.json();
     const { messages, project_id, conversation_id, model, system_prompt } = body;
@@ -243,43 +266,89 @@ export async function POST(req: Request) {
     // Choose Provider and Map selected Models
     modelToUse = model || 'CodexForge-MoE';
     let keyMissingWarning = '';
+    let keyToUse = '';
+    let customBaseUrl = '';
+
+    const cleanModel = modelToUse.toLowerCase().trim();
 
     if (modelToUse === 'CodexForge-MoE') {
-      if (process.env.GEMINI_API_KEY) {
+      if (geminiKey) {
         provider = 'gemini';
-        modelToUse = 'gemini-3.5-flash';
-      } else if (process.env.OPENAI_API_KEY) {
+        modelToUse = 'gemini-1.5-flash';
+        keyToUse = geminiKey;
+      } else if (openAIKey) {
         provider = 'openai';
-        modelToUse = 'gpt-5.4-mini-2026-03-17';
+        modelToUse = 'gpt-4o-mini';
+        keyToUse = openAIKey;
       } else {
-        keyMissingWarning = `⚠️ [API Key Missing]: No Gemini or OpenAI API credentials configured for your CodexForge MoE model. Falling back to offline mock...\n\n`;
+        keyMissingWarning = `⚠️ [API Key Missing]: No Gemini or OpenAI API credentials configured for your CodexForge MoE model. Please configure your keys in the "API Keys" page.\n\n`;
         provider = 'mock';
       }
-    } else if (modelToUse === 'gpt-4o') {
-      if (process.env.OPENAI_API_KEY) {
+    } else if (cleanModel === 'gpt-4o' || cleanModel.includes('chatgpt') || cleanModel === 'openai') {
+      if (openAIKey) {
         provider = 'openai';
-        modelToUse = 'gpt-5.4-mini-2026-03-17';
+        modelToUse = 'gpt-4o-mini';
+        keyToUse = openAIKey;
       } else {
-        keyMissingWarning = `⚠️ [API Key Missing]: OpenAI API key is not configured. Falling back to offline mock...\n\n`;
+        keyMissingWarning = `⚠️ [API Key Missing]: OpenAI API key is not configured. Please add it in "API Keys" page.\n\n`;
         provider = 'mock';
       }
-    } else if (modelToUse === 'gemini-3.5-flash') {
-      if (process.env.GEMINI_API_KEY) {
+    } else if (cleanModel === 'gemini-3.5-flash' || cleanModel.includes('gemini')) {
+      if (geminiKey) {
         provider = 'gemini';
-        modelToUse = 'gemini-3.5-flash';
+        modelToUse = 'gemini-1.5-flash';
+        keyToUse = geminiKey;
       } else {
-        keyMissingWarning = `⚠️ [API Key Missing]: Gemini API key is not configured. Falling back to offline mock...\n\n`;
+        keyMissingWarning = `⚠️ [API Key Missing]: Gemini API key is not configured. Please add it in "API Keys" page.\n\n`;
+        provider = 'mock';
+      }
+    } else if (cleanModel.includes('claude') || cleanModel.includes('anthropic')) {
+      if (anthropicKey) {
+        provider = 'anthropic';
+        modelToUse = 'claude-3-5-sonnet-20241022';
+        keyToUse = anthropicKey;
+      } else {
+        keyMissingWarning = `⚠️ [API Key Missing]: Anthropic Claude API key is not configured. Please add it in "API Keys" page.\n\n`;
+        provider = 'mock';
+      }
+    } else if (cleanModel.includes('deepseek')) {
+      if (deepseekKey) {
+        provider = 'deepseek';
+        modelToUse = 'deepseek-chat';
+        keyToUse = deepseekKey;
+      } else {
+        keyMissingWarning = `⚠️ [API Key Missing]: DeepSeek API key is not configured. Please add it in "API Keys" page.\n\n`;
         provider = 'mock';
       }
     } else {
-      if (process.env.GEMINI_API_KEY) {
-        provider = 'gemini';
-        modelToUse = 'gemini-3.5-flash';
-      } else if (process.env.OPENAI_API_KEY) {
-        provider = 'openai';
-        modelToUse = 'gpt-5.4-mini-2026-03-17';
+      // Check if custom provider matches cleanModel or substring
+      let matchedProviderKey = '';
+      for (const prov of keysMap.keys()) {
+        if (cleanModel === prov || cleanModel.includes(prov)) {
+          matchedProviderKey = prov;
+          break;
+        }
+      }
+
+      if (matchedProviderKey) {
+        const customProv = keysMap.get(matchedProviderKey)!;
+        provider = 'openai'; // custom providers use standard OpenAI completions structure
+        modelToUse = customProv.defaultModel || matchedProviderKey;
+        keyToUse = customProv.apiKey;
+        customBaseUrl = customProv.baseUrl || '';
       } else {
-        provider = 'mock';
+        // Fallback
+        if (geminiKey) {
+          provider = 'gemini';
+          modelToUse = 'gemini-1.5-flash';
+          keyToUse = geminiKey;
+        } else if (openAIKey) {
+          provider = 'openai';
+          modelToUse = 'gpt-4o-mini';
+          keyToUse = openAIKey;
+        } else {
+          provider = 'mock';
+        }
       }
     }
 
@@ -347,37 +416,9 @@ export async function POST(req: Request) {
 
         if (!activeConversationId) {
           let title = 'New Conversation';
-          
           if (lastMessage) {
-            if (process.env.GEMINI_API_KEY) {
-              try {
-                const titleRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    contents: [{
-                      parts: [{ text: `Based on this user message, generate a 2-4 word conversation title summarizing the topic. Output ONLY the raw title without any formatting, quotes, or markdown. User message: "${lastMessage}"` }]
-                    }],
-                    generationConfig: { temperature: 0.3, maxOutputTokens: 10 }
-                  })
-                });
-
-                if (titleRes.ok) {
-                  const titleJson = await titleRes.json();
-                  const generatedTitle = titleJson.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-                  if (generatedTitle) {
-                    title = generatedTitle.replace(/^["']|["']$/g, '').trim();
-                  }
-                }
-              } catch (err) {
-                console.warn("Failed to generate dynamic title with Gemini:", err);
-              }
-            }
-
-            if (title === 'New Conversation' || !title) {
-              const titleSnippet = lastMessage.substring(0, 30).trim();
-              title = titleSnippet ? `${titleSnippet}...` : 'New Conversation';
-            }
+            const titleSnippet = lastMessage.substring(0, 30).trim();
+            title = titleSnippet ? `${titleSnippet}...` : 'New Conversation';
           }
 
           const newConv = await prisma.conversation.create({
@@ -465,7 +506,7 @@ export async function POST(req: Request) {
           contents[contents.length - 1].parts[0].text += context;
         }
 
-        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelToUse}:streamGenerateContent?key=${process.env.GEMINI_API_KEY}&alt=sse`, {
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelToUse}:streamGenerateContent?key=${keyToUse}&alt=sse`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -479,9 +520,14 @@ export async function POST(req: Request) {
 
         if (res.ok) {
           reader = res.body?.getReader();
+        } else {
+          const errText = await res.text();
+          console.warn(`Gemini API returned error status ${res.status}:`, errText);
+          keyMissingWarning = `⚠️ [Gemini API Error - Status ${res.status}]: ${errText.substring(0, 200)}...\n\n`;
         }
-      } catch (err) {
+      } catch (err: any) {
         console.warn("Gemini API call failed, attempting fallback:", err);
+        keyMissingWarning = `⚠️ [Gemini API Call Failed]: ${err.message || err}\n\n`;
       }
     }
 
@@ -504,11 +550,20 @@ export async function POST(req: Request) {
           messagesPayload[messagesPayload.length - 1].content += context;
         }
 
-        const res = await fetch("https://api.openai.com/v1/chat/completions", {
+        let fetchUrl = "https://api.openai.com/v1/chat/completions";
+        if (customBaseUrl) {
+          if (customBaseUrl.endsWith("chat/completions")) {
+            fetchUrl = customBaseUrl;
+          } else {
+            fetchUrl = customBaseUrl.endsWith("/") ? `${customBaseUrl}chat/completions` : `${customBaseUrl}/chat/completions`;
+          }
+        }
+
+        const res = await fetch(fetchUrl, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`
+            'Authorization': `Bearer ${keyToUse}`
           },
           body: JSON.stringify({
             model: modelToUse,
@@ -521,9 +576,105 @@ export async function POST(req: Request) {
 
         if (res.ok) {
           reader = res.body?.getReader();
+        } else {
+          const errText = await res.text();
+          console.warn(`OpenAI/Custom API returned error status ${res.status}:`, errText);
+          keyMissingWarning = `⚠️ [API Error - Status ${res.status}]: ${errText.substring(0, 200)}...\n\n`;
         }
-      } catch (err) {
-        console.warn("OpenAI API call failed, attempting fallback:", err);
+      } catch (err: any) {
+        console.warn("OpenAI/Custom API call failed, attempting fallback:", err);
+        keyMissingWarning = `⚠️ [API Call Failed]: ${err.message || err}\n\n`;
+      }
+    }
+
+    if (provider === 'anthropic' && !reader) {
+      try {
+        const messagesPayload = messages.map((m: any) => ({
+          role: (m.role === 'assistant' || m.senderRole === 'assistant') ? 'assistant' : 'user',
+          content: m.content || m.text
+        }));
+
+        if (matches.length > 0 && messagesPayload.length > 0) {
+          let context = "\n\n[CONTEXT DATA] Relevant code found in repository:\n";
+          for (const m of matches) {
+            context += `\nFile: ${m.payload.file_path} (${m.payload.type})\n\`\`\`\n${m.payload.code}\n\`\`\`\n`;
+          }
+          messagesPayload[messagesPayload.length - 1].content += context;
+        }
+
+        const res = await fetch("https://api.anthropic.com/v1/messages", {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': keyToUse,
+            'anthropic-version': '2023-06-01',
+          },
+          body: JSON.stringify({
+            model: modelToUse,
+            messages: messagesPayload,
+            system: promptInstruction || undefined,
+            max_tokens: 1000,
+            stream: true
+          })
+        });
+
+        if (res.ok) {
+          reader = res.body?.getReader();
+        } else {
+          const errText = await res.text();
+          console.warn("Anthropic API returned error:", res.status, errText);
+          keyMissingWarning = `⚠️ [Anthropic API Error - Status ${res.status}]: ${errText.substring(0, 200)}...\n\n`;
+        }
+      } catch (err: any) {
+        console.warn("Anthropic API call failed:", err);
+        keyMissingWarning = `⚠️ [Anthropic API Call Failed]: ${err.message || err}\n\n`;
+      }
+    }
+
+    if (provider === 'deepseek' && !reader) {
+      try {
+        const messagesPayload = messages.map((m: any) => ({
+          role: m.role || m.senderRole || 'user',
+          content: m.content || m.text
+        }));
+
+        if (promptInstruction) {
+          messagesPayload.unshift({ role: 'system', content: promptInstruction });
+        }
+
+        if (matches.length > 0 && messagesPayload.length > 0) {
+          let context = "\n\n[CONTEXT DATA] Relevant code found in repository:\n";
+          for (const m of matches) {
+            context += `\nFile: ${m.payload.file_path} (${m.payload.type})\n\`\`\`\n${m.payload.code}\n\`\`\`\n`;
+          }
+          messagesPayload[messagesPayload.length - 1].content += context;
+        }
+
+        const res = await fetch("https://api.deepseek.com/chat/completions", {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${keyToUse}`
+          },
+          body: JSON.stringify({
+            model: modelToUse,
+            messages: messagesPayload,
+            temperature: 0.2,
+            max_tokens: 1000,
+            stream: true
+          })
+        });
+
+        if (res.ok) {
+          reader = res.body?.getReader();
+        } else {
+          const errText = await res.text();
+          console.warn("DeepSeek API returned error:", res.status, errText);
+          keyMissingWarning = `⚠️ [DeepSeek API Error - Status ${res.status}]: ${errText.substring(0, 200)}...\n\n`;
+        }
+      } catch (err: any) {
+        console.warn("DeepSeek API call failed:", err);
+        keyMissingWarning = `⚠️ [DeepSeek API Call Failed]: ${err.message || err}\n\n`;
       }
     }
 
@@ -609,7 +760,7 @@ export async function POST(req: Request) {
                   continue;
                 }
 
-                if (provider === 'openai') {
+                if (provider === 'openai' || provider === 'deepseek') {
                   if (cleanLine.startsWith("data:")) {
                     const dataStr = cleanLine.substring(5).trim();
                     if (dataStr === "[DONE]") continue;
@@ -618,6 +769,21 @@ export async function POST(req: Request) {
                       const chunkObj = JSON.parse(dataStr);
                       const text = chunkObj.choices?.[0]?.delta?.content;
                       if (text) {
+                        assistantContent += text;
+                        sendChunk({ token: text, finish_reason: null });
+                      }
+                    } catch { }
+                  }
+                  continue;
+                }
+
+                if (provider === 'anthropic') {
+                  if (cleanLine.startsWith("data:")) {
+                    const dataStr = cleanLine.substring(5).trim();
+                    try {
+                      const chunkObj = JSON.parse(dataStr);
+                      if (chunkObj.type === "content_block_delta" && chunkObj.delta?.text) {
+                        const text = chunkObj.delta.text;
                         assistantContent += text;
                         sendChunk({ token: text, finish_reason: null });
                       }

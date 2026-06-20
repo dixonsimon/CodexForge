@@ -319,6 +319,39 @@ const agentSteps = [
 export default function ChatPage() {
   const [selectedModel, setSelectedModel] = useState("CodexForge-MoE");
   const [selectedMode, setSelectedMode] = useState<'general' | 'developer' | 'creative' | 'tutor'>("general");
+  const [externalKeys, setExternalKeys] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchExtKeys = async () => {
+      try {
+        const response = await fetch("/api/v1/keys/external");
+        if (response.ok) {
+          const data = await response.json();
+          setExternalKeys(data);
+        }
+      } catch (err) {
+        console.error("Failed to load external keys in chat:", err);
+      }
+    };
+    fetchExtKeys();
+  }, []);
+
+  const baseModels = [
+    { id: "CodexForge-MoE", name: "CodexForge MoE (Default)" },
+    { id: "gpt-4o", name: "ChatGPT (gpt-4o)" },
+    { id: "gemini-3.5-flash", name: "Gemini (gemini-3.5-flash)" },
+    { id: "claude-3-5-sonnet", name: "Anthropic Claude (claude-3.5-sonnet)" },
+    { id: "deepseek-chat", name: "DeepSeek Coder" }
+  ];
+
+  const customModels = externalKeys
+    .filter(k => !["gemini", "openai", "chatgpt", "anthropic", "claude", "deepseek"].includes(k.provider.toLowerCase()))
+    .map(k => ({
+      id: k.provider,
+      name: `${k.label} (${k.defaultModel || k.provider})`
+    }));
+
+  const allModels = [...baseModels, ...customModels];
 
   const [isModelOpen, setIsModelOpen] = useState(false);
   const [isModeOpen, setIsModeOpen] = useState(false);
@@ -939,9 +972,7 @@ export default function ChatPage() {
                 className="flex items-center gap-2 bg-neutral-900/90 hover:bg-neutral-950 hover:text-white border border-[#1f1f1f] hover:border-neutral-800 rounded-xl text-neutral-300 px-3 py-1.5 text-xs font-medium focus:outline-none cursor-pointer transition-all duration-200 shadow-md active:scale-95"
               >
                 <span>
-                  {selectedModel === "CodexForge-MoE" && "CodexForge MoE (Default)"}
-                  {selectedModel === "gpt-4o" && "ChatGPT (gpt-4o)"}
-                  {selectedModel === "gemini-3.5-flash" && "Gemini (gemini-3.5-flash)"}
+                  {allModels.find(m => m.id === selectedModel)?.name || selectedModel}
                 </span>
                 <svg
                   className={`w-3.5 h-3.5 transition-transform duration-200 text-neutral-400 ${isModelOpen ? "rotate-180" : ""}`}
@@ -955,61 +986,28 @@ export default function ChatPage() {
               </button>
 
               {isModelOpen && (
-                <div className="absolute left-0 mt-2 w-56 rounded-2xl border border-[#222] bg-[#0c0c0c]/95 backdrop-blur-md p-1.5 shadow-2xl shadow-black/90 z-[100] transition-all duration-200 origin-top-left">
-                  <button
-                    onClick={() => {
-                      handleModelChange("CodexForge-MoE");
-                      setIsModelOpen(false);
-                    }}
-                    className={`w-full flex items-center justify-between px-3 py-2 text-left text-xs rounded-xl cursor-pointer transition-all duration-200 ${
-                      selectedModel === "CodexForge-MoE"
-                        ? "bg-neutral-850 text-white font-semibold"
-                        : "text-neutral-400 hover:bg-neutral-900 hover:text-neutral-200"
-                    }`}
-                  >
-                    <span>CodexForge MoE (Default)</span>
-                    {selectedModel === "CodexForge-MoE" && (
-                      <svg className="w-3.5 h-3.5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                      </svg>
-                    )}
-                  </button>
-                  <button
-                    onClick={() => {
-                      handleModelChange("gpt-4o");
-                      setIsModelOpen(false);
-                    }}
-                    className={`w-full flex items-center justify-between px-3 py-2 text-left text-xs rounded-xl cursor-pointer transition-all duration-200 ${
-                      selectedModel === "gpt-4o"
-                        ? "bg-neutral-850 text-white font-semibold"
-                        : "text-neutral-400 hover:bg-neutral-900 hover:text-neutral-200"
-                    }`}
-                  >
-                    <span>ChatGPT (gpt-4o)</span>
-                    {selectedModel === "gpt-4o" && (
-                      <svg className="w-3.5 h-3.5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                      </svg>
-                    )}
-                  </button>
-                  <button
-                    onClick={() => {
-                      handleModelChange("gemini-3.5-flash");
-                      setIsModelOpen(false);
-                    }}
-                    className={`w-full flex items-center justify-between px-3 py-2 text-left text-xs rounded-xl cursor-pointer transition-all duration-200 ${
-                      selectedModel === "gemini-3.5-flash"
-                        ? "bg-neutral-850 text-white font-semibold"
-                        : "text-neutral-400 hover:bg-neutral-900 hover:text-neutral-200"
-                    }`}
-                  >
-                    <span>Gemini (gemini-3.5-flash)</span>
-                    {selectedModel === "gemini-3.5-flash" && (
-                      <svg className="w-3.5 h-3.5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                      </svg>
-                    )}
-                  </button>
+                <div className="absolute left-0 mt-2 w-64 rounded-2xl border border-[#222] bg-[#0c0c0c]/95 backdrop-blur-md p-1.5 shadow-2xl shadow-black/90 z-[100] transition-all duration-200 origin-top-left max-h-80 overflow-y-auto">
+                  {allModels.map((model) => (
+                    <button
+                      key={model.id}
+                      onClick={() => {
+                        handleModelChange(model.id);
+                        setIsModelOpen(false);
+                      }}
+                      className={`w-full flex items-center justify-between px-3 py-2 text-left text-xs rounded-xl cursor-pointer transition-all duration-200 ${
+                        selectedModel === model.id
+                          ? "bg-neutral-850 text-white font-semibold"
+                          : "text-neutral-400 hover:bg-neutral-900 hover:text-neutral-200"
+                      }`}
+                    >
+                      <span>{model.name}</span>
+                      {selectedModel === model.id && (
+                        <svg className="w-3.5 h-3.5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                        </svg>
+                      )}
+                    </button>
+                  ))}
                 </div>
               )}
             </div>

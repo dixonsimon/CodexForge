@@ -20,10 +20,24 @@ export default function KeysPage() {
   const [isScopeOpen, setIsScopeOpen] = useState(false);
   const scopeRef = useRef<HTMLDivElement>(null);
 
+  const [externalKeys, setExternalKeys] = useState<any[]>([]);
+  const [extProvider, setExtProvider] = useState("gemini");
+  const [customProviderName, setCustomProviderName] = useState("");
+  const [extLabel, setExtLabel] = useState("");
+  const [extApiKey, setExtApiKey] = useState("");
+  const [extBaseUrl, setExtBaseUrl] = useState("");
+  const [extDefaultModel, setExtDefaultModel] = useState("");
+
+  const [isExtProviderOpen, setIsExtProviderOpen] = useState(false);
+  const extProviderRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (scopeRef.current && !scopeRef.current.contains(event.target as Node)) {
         setIsScopeOpen(false);
+      }
+      if (extProviderRef.current && !extProviderRef.current.contains(event.target as Node)) {
+        setIsExtProviderOpen(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -31,6 +45,18 @@ export default function KeysPage() {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
+
+  const loadExternalKeys = async () => {
+    try {
+      const response = await fetch("/api/v1/keys/external");
+      if (response.ok) {
+        const data = await response.json();
+        setExternalKeys(data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch external API keys:", error);
+    }
+  };
 
   // Fetch keys from persistent backend on mount
   useEffect(() => {
@@ -46,7 +72,59 @@ export default function KeysPage() {
       }
     };
     loadApiKeys();
+    loadExternalKeys();
   }, []);
+
+  const handleCreateExternalKey = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const finalProvider = extProvider === "custom" ? customProviderName.trim() : extProvider;
+    if (!finalProvider || !extLabel.trim() || !extApiKey.trim()) return;
+
+    try {
+      const response = await fetch("/api/v1/keys/external", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          provider: finalProvider,
+          label: extLabel,
+          apiKey: extApiKey,
+          baseUrl: extProvider === "custom" ? extBaseUrl : null,
+          defaultModel: extProvider === "custom" ? extDefaultModel : null,
+        }),
+      });
+
+      if (response.ok) {
+        await loadExternalKeys();
+        setExtLabel("");
+        setExtApiKey("");
+        setExtBaseUrl("");
+        setExtDefaultModel("");
+        setCustomProviderName("");
+      } else {
+        const errData = await response.json();
+        alert(errData.error || "Failed to save external API key");
+      }
+    } catch (error) {
+      console.error("Failed to save external API key:", error);
+    }
+  };
+
+  const handleDeleteExternalKey = async (providerToDelete: string) => {
+    if (!confirm(`Are you sure you want to delete the API key for ${providerToDelete}?`)) return;
+    try {
+      const response = await fetch("/api/v1/keys/external", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ provider: providerToDelete }),
+      });
+
+      if (response.ok) {
+        setExternalKeys((prev) => prev.filter((k) => k.provider !== providerToDelete));
+      }
+    } catch (error) {
+      console.error("Failed to delete external API key:", error);
+    }
+  };
 
   const handleCreateKey = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -317,6 +395,212 @@ export default function KeysPage() {
                 )}
               </tbody>
             </table>
+          </div>
+        </div>
+      </div>
+
+      {/* External AI Provider API Keys Section */}
+      <div className="border-t border-[#1f1f1f] pt-10 flex flex-col gap-6">
+        <div>
+          <h2 className="text-xl font-bold bg-gradient-to-b from-white to-neutral-400 bg-clip-text text-transparent">
+            External AI Credentials
+          </h2>
+          <p className="text-neutral-400 text-xs mt-2.5 font-medium">
+            Configure keys and custom configurations for external AI models to use them dynamically within chat sessions.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 w-full">
+          {/* Create External Key Card */}
+          <div className="bg-[#0c0c0c] border border-[#1f1f1f] p-6 rounded-3xl h-fit">
+            <h3 className="text-sm font-bold text-white mb-4">Add External Provider Key</h3>
+            
+            <form onSubmit={handleCreateExternalKey} className="flex flex-col gap-4">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest">Provider</label>
+                <div className="relative" ref={extProviderRef}>
+                  <button
+                    type="button"
+                    onClick={() => setIsExtProviderOpen(!isExtProviderOpen)}
+                    className="w-full flex items-center justify-between bg-black hover:bg-neutral-950 border border-[#1f1f1f] hover:border-neutral-800 rounded-2xl px-4 py-2.5 text-xs text-white focus:outline-none cursor-pointer transition-all duration-200"
+                  >
+                    <span className="font-semibold text-xs">
+                      {extProvider === "gemini" && "Google Gemini"}
+                      {extProvider === "openai" && "OpenAI ChatGPT"}
+                      {extProvider === "anthropic" && "Anthropic Claude"}
+                      {extProvider === "deepseek" && "DeepSeek"}
+                      {extProvider === "custom" && "Custom Name / Endpoint"}
+                    </span>
+                    <svg
+                      className={`w-3.5 h-3.5 transition-transform duration-200 text-neutral-400 ${isExtProviderOpen ? "rotate-180" : ""}`}
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+
+                  {isExtProviderOpen && (
+                    <div className="absolute left-0 right-0 mt-2 rounded-2xl border border-[#222] bg-[#0c0c0c]/95 backdrop-blur-md p-1.5 shadow-2xl shadow-black/90 z-[100] transition-all duration-200 origin-top">
+                      {["gemini", "openai", "anthropic", "deepseek", "custom"].map((prov) => (
+                        <button
+                          key={prov}
+                          type="button"
+                          onClick={() => {
+                            setExtProvider(prov);
+                            setIsExtProviderOpen(false);
+                          }}
+                          className={`w-full flex items-center justify-between px-3 py-2 text-left text-xs rounded-xl cursor-pointer transition-all duration-200 ${
+                            extProvider === prov
+                              ? "bg-neutral-850 text-white font-semibold"
+                              : "text-neutral-400 hover:bg-neutral-900 hover:text-neutral-200"
+                          }`}
+                        >
+                          <span>
+                            {prov === "gemini" && "Google Gemini"}
+                            {prov === "openai" && "OpenAI ChatGPT"}
+                            {prov === "anthropic" && "Anthropic Claude"}
+                            {prov === "deepseek" && "DeepSeek"}
+                            {prov === "custom" && "Custom Name / Endpoint"}
+                          </span>
+                          {extProvider === prov && (
+                            <svg className="w-3.5 h-3.5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                            </svg>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {extProvider === "custom" && (
+                <>
+                  <div className="flex flex-col gap-1.5 animate-fade-in">
+                    <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest">Custom Provider Name</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. groq, openrouter, mistral"
+                      value={customProviderName}
+                      onChange={(e) => setCustomProviderName(e.target.value)}
+                      className="bg-black border border-[#1f1f1f] rounded-2xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-neutral-500 transition-colors"
+                      required
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5 animate-fade-in">
+                    <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest">API Base URL</label>
+                    <input
+                      type="url"
+                      placeholder="e.g. https://api.groq.com/openai/v1"
+                      value={extBaseUrl}
+                      onChange={(e) => setExtBaseUrl(e.target.value)}
+                      className="bg-black border border-[#1f1f1f] rounded-2xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-neutral-500 transition-colors"
+                      required
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5 animate-fade-in">
+                    <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest">Default Model Name</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. llama-3.3-70b-versatile"
+                      value={extDefaultModel}
+                      onChange={(e) => setExtDefaultModel(e.target.value)}
+                      className="bg-black border border-[#1f1f1f] rounded-2xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-neutral-500 transition-colors"
+                      required
+                    />
+                  </div>
+                </>
+              )}
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest">Key Label</label>
+                <input
+                  type="text"
+                  placeholder="e.g. My Personal API Key"
+                  value={extLabel}
+                  onChange={(e) => setExtLabel(e.target.value)}
+                  className="bg-black border border-[#1f1f1f] rounded-2xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-neutral-500 transition-colors"
+                  required
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest">Secret API Key</label>
+                <input
+                  type="password"
+                  placeholder="Paste your secret key here"
+                  value={extApiKey}
+                  onChange={(e) => setExtApiKey(e.target.value)}
+                  className="bg-black border border-[#1f1f1f] rounded-2xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-neutral-500 transition-colors"
+                  required
+                />
+              </div>
+
+              <button
+                type="submit"
+                className="w-full mt-2 py-2.5 rounded-2xl bg-white text-black text-xs font-bold hover:bg-neutral-200 transition-all active:scale-95 shadow-[0_0_15px_rgba(255,255,255,0.05)]"
+              >
+                Save External Key
+              </button>
+            </form>
+          </div>
+
+          {/* External Keys List Table Card */}
+          <div className="bg-[#0c0c0c] border border-[#1f1f1f] p-6 rounded-3xl lg:col-span-2 overflow-hidden flex flex-col">
+            <h3 className="text-sm font-bold text-white mb-4">Configured External Credentials</h3>
+            
+            <div className="overflow-x-auto w-full">
+              <table className="w-full text-left border-collapse min-w-[500px]">
+                <thead>
+                  <tr className="border-b border-[#1f1f1f] text-[10px] font-bold text-neutral-500 uppercase tracking-widest">
+                    <th className="pb-3 font-semibold">Provider</th>
+                    <th className="pb-3 font-semibold">Label</th>
+                    <th className="pb-3 font-semibold">Endpoint Detail</th>
+                    <th className="pb-3 font-semibold">Added At</th>
+                    <th className="pb-3 font-semibold text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#1f1f1f]">
+                  {externalKeys.map((k) => (
+                    <tr key={k.id} className="text-xs text-neutral-300 hover:bg-black/20 transition-colors">
+                      <td className="py-4 font-bold text-white uppercase tracking-wider">{k.provider}</td>
+                      <td className="py-4 text-neutral-200">{k.label}</td>
+                      <td className="py-4 font-mono text-neutral-400">
+                        {k.baseUrl ? (
+                          <div className="flex flex-col gap-0.5 text-[10px]">
+                            <span className="text-white font-medium">{k.defaultModel}</span>
+                            <span className="text-neutral-500 truncate max-w-xs">{k.baseUrl}</span>
+                          </div>
+                        ) : (
+                          <span className="text-neutral-500 text-[10px] font-semibold">Official API Endpoint</span>
+                        )}
+                      </td>
+                      <td className="py-4 text-neutral-400 font-medium">
+                        {new Date(k.createdAt).toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" })}
+                      </td>
+                      <td className="py-4 text-right">
+                        <button
+                          onClick={() => handleDeleteExternalKey(k.provider)}
+                          className="text-xs font-bold text-neutral-400 hover:text-red-400 transition-colors cursor-pointer"
+                        >
+                          Delete
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                  {externalKeys.length === 0 && (
+                    <tr>
+                      <td colSpan={5} className="py-8 text-center text-neutral-500 font-semibold text-xs">
+                        No configured external API keys. Add one on the left to activate third-party models in Chat.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>
