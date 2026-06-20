@@ -53,4 +53,12 @@ This document outlines the current feature completion status and lists the pendi
 ---
 
 ### 🔴 Pending Features (Core Backlog)
-* (All features in the core backlog are fully completed and operational!)
+
+#### 9. Next-Generation Roadmap & Scalability (Staged)
+* **Automated SWE-bench Evaluation Harness**: Design an automated grading pipeline ([evaluation_harness.py](file:///c:/Users/Dixon/OneDrive/Documents/LLM/apps/backend-agent/pipelines/evaluation_harness.py)) that feeds code questions into sandbox VM runs and scores candidate completions.
+* **Prometheus GPU Telemetry Monitor**: Implement hardware metrics exporter ([monitor_metrics.py](file:///c:/Users/Dixon/OneDrive/Documents/LLM/apps/backend-agent/pipelines/monitor_metrics.py)) compiling GPU VRAM load and request queues into Prometheus-compatible lines.
+* **SaaS Stripe Subscriptions & Billing**: Build NestJS billing adapters ([billing.service.ts](file:///c:/Users/Dixon/OneDrive/Documents/LLM/apps/backend-core/src/auth/billing.service.ts)) validating Stripe customer subscription webhooks and auto-downgrading billing tiers.
+* **Auxiliary MoE Load-Balancing Loss**: Implement entropy-based load balancing loss calculation module ([moe_loss.py](file:///c:/Users/Dixon/OneDrive/Documents/LLM/apps/backend-agent/pipelines/moe_loss.py)) to prevent expert collapse during SFT training.
+* **Context Extension via YaRN RoPE Scaling**: Implement YaRN scaling attention interpolation simulation ([yarn_scaling.py](file:///c:/Users/Dixon/OneDrive/Documents/LLM/apps/backend-agent/pipelines/yarn_scaling.py)) to support context sequences up to 128k.
+* **Autoregressive Back-Translation Curation**: Build comment generation synthetic data scripts ([back_translation.py](file:///c:/Users/Dixon/OneDrive/Documents/LLM/apps/backend-agent/pipelines/back_translation.py)) translating raw functional code into structured instruction datasets.
+* **Collaborative Organization Resource Allocation**: Add NestJS team credit management controllers enabling managers to set hard limits on GPU tokens and sandbox execution time per member.
