@@ -9,7 +9,7 @@ export default function ProfilePage() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [dbUser, setDbUser] = useState<any>(null);
+  const [debugInfo, setDebugInfo] = useState<any>(null);
   
   // Modal states
   const [showDeleteDataModal, setShowDeleteDataModal] = useState(false);
@@ -24,12 +24,10 @@ export default function ProfilePage() {
       const u = res?.data?.user;
       if (u) {
         setUser(u);
-        // Fetch database details if necessary
-        fetch(`/api/v1/organizations`) // just to fetch orgs/metadata or check connection
+        // Fetch debug info from local endpoint
+        fetch("/api/v1/debug")
           .then((res) => res.json())
-          .then((data) => {
-            // Can extract some info if needed
-          })
+          .then((data) => setDebugInfo(data))
           .catch(() => {});
       } else {
         router.push("/login");
@@ -48,6 +46,11 @@ export default function ProfilePage() {
       if (response.ok) {
         setShowDeleteDataModal(false);
         alert("All your conversations, API keys, and file locks have been successfully deleted.");
+        // Refresh dynamic counter
+        fetch("/api/v1/debug")
+          .then((res) => res.json())
+          .then((data) => setDebugInfo(data))
+          .catch(() => {});
         router.refresh();
       } else {
         const err = await response.json();
@@ -68,7 +71,6 @@ export default function ProfilePage() {
         method: "POST",
       });
       if (response.ok) {
-        // Sign out from Supabase client-side
         await supabase.auth.signOut();
         setShowDeleteAccountModal(false);
         router.push("/login");
@@ -103,7 +105,7 @@ export default function ProfilePage() {
 
   return (
     <div className="min-h-screen bg-[#060606] py-12 px-6 sm:px-12 flex justify-center items-start overflow-y-auto select-none animate-fade-in">
-      <div className="w-full max-w-xl flex flex-col gap-10">
+      <div className="w-full max-w-5xl flex flex-col gap-10">
         
         {/* Profile Header */}
         <div className="flex items-center gap-4 pb-6 border-b border-[#1f1f1f]">
@@ -135,70 +137,131 @@ export default function ProfilePage() {
           </div>
         )}
 
-        {/* Account Info Section */}
-        <div className="flex flex-col gap-5">
-          <div className="border-b border-[#1f1f1f] pb-3">
-            <h2 className="text-xs font-bold text-white uppercase tracking-wider">Account</h2>
-            <p className="text-neutral-500 text-[11px] mt-0.5">Manage your profile details and settings.</p>
-          </div>
+        {/* Two Column Layout for Full Screen Utilization */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
           
-          <div className="flex flex-col text-xs">
-            <div className="flex items-center justify-between py-3 border-b border-[#121212]">
-              <span className="text-neutral-400">User ID</span>
-              <span className="text-neutral-400 font-mono select-all truncate max-w-[200px]" title={user.id}>{user.id}</span>
-            </div>
-            <div className="flex items-center justify-between py-3 border-b border-[#121212]">
-              <span className="text-neutral-400">Sign-in Provider</span>
-              <span className="text-neutral-200 capitalize">{user.app_metadata?.provider || "Supabase Auth"}</span>
-            </div>
-            <div className="flex items-center justify-between py-3 border-b border-[#121212]">
-              <span className="text-neutral-400">Last Sign-in</span>
-              <span className="text-neutral-200 font-mono">
-                {new Date(user.last_sign_in_at).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
-              </span>
-            </div>
-            <div className="flex items-center justify-between py-3">
-              <span className="text-neutral-400">Member Since</span>
-              <span className="text-neutral-200 font-mono">
-                {new Date(user.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Data & History controls */}
-        <div className="flex flex-col gap-5">
-          <div className="border-b border-[#1f1f1f] pb-3">
-            <h2 className="text-xs font-bold text-white uppercase tracking-wider">Data Controls</h2>
-            <p className="text-neutral-500 text-[11px] mt-0.5 font-normal">Manage your personal data, saved keys and conversation history.</p>
-          </div>
-          
-          <div className="flex flex-col text-xs">
-            <div className="flex items-center justify-between py-3.5 border-b border-[#121212]">
-              <div className="flex flex-col gap-0.5">
-                <span className="text-neutral-200 font-semibold">Delete all data</span>
-                <span className="text-neutral-500 text-[11px]">Permanently clear your conversations and active keys.</span>
-              </div>
-              <button
-                onClick={() => setShowDeleteDataModal(true)}
-                className="px-3 py-1.5 rounded-lg border border-[#1f1f1f] hover:border-red-900/60 bg-neutral-900/20 hover:bg-red-950/10 text-neutral-300 hover:text-red-400 font-semibold transition-all active:scale-95 cursor-pointer"
-              >
-                Delete Data
-              </button>
+          {/* Left Column - Account Information */}
+          <div className="md:col-span-1 flex flex-col gap-6">
+            <div className="border-b border-[#1f1f1f] pb-3">
+              <h2 className="text-xs font-bold text-white uppercase tracking-wider">Account Info</h2>
+              <p className="text-neutral-500 text-[11px] mt-0.5">Your core identity details.</p>
             </div>
             
-            <div className="flex items-center justify-between py-3.5">
-              <div className="flex flex-col gap-0.5">
-                <span className="text-neutral-200 font-semibold">Delete account</span>
-                <span className="text-neutral-500 text-[11px]">Permanently delete your profile and close the account.</span>
+            <div className="flex flex-col text-xs gap-3">
+              <div className="flex flex-col gap-1 py-2 border-b border-[#121212]">
+                <span className="text-[10px] text-neutral-500 uppercase font-semibold">User ID</span>
+                <span className="text-neutral-400 font-mono select-all truncate" title={user.id}>{user.id}</span>
               </div>
-              <button
-                onClick={() => setShowDeleteAccountModal(true)}
-                className="px-3 py-1.5 rounded-lg border border-red-950/40 hover:border-red-500 bg-red-950/20 hover:bg-red-950/50 text-red-400 font-semibold transition-all active:scale-95 cursor-pointer"
-              >
-                Delete Account
-              </button>
+              <div className="flex flex-col gap-1 py-2 border-b border-[#121212]">
+                <span className="text-[10px] text-neutral-500 uppercase font-semibold">Sign-in Provider</span>
+                <span className="text-neutral-200 capitalize">{user.app_metadata?.provider || "Supabase Auth"}</span>
+              </div>
+              <div className="flex flex-col gap-1 py-2 border-b border-[#121212]">
+                <span className="text-[10px] text-neutral-500 uppercase font-semibold">Last Sign-in</span>
+                <span className="text-neutral-200 font-mono">
+                  {new Date(user.last_sign_in_at).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
+                </span>
+              </div>
+              <div className="flex flex-col gap-1 py-2">
+                <span className="text-[10px] text-neutral-500 uppercase font-semibold">Member Since</span>
+                <span className="text-neutral-200 font-mono">
+                  {new Date(user.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
+                </span>
+              </div>
             </div>
+          </div>
+
+          {/* Right Column - System Diagnostics & Data Controls */}
+          <div className="md:col-span-2 flex flex-col gap-10">
+            
+            {/* System Status / Diagnostics */}
+            <div className="flex flex-col gap-5">
+              <div className="border-b border-[#1f1f1f] pb-3">
+                <h2 className="text-xs font-bold text-white uppercase tracking-wider">System & Diagnostics</h2>
+                <p className="text-neutral-500 text-[11px] mt-0.5 font-normal">Real-time status of service integrations and databases.</p>
+              </div>
+              
+              <div className="flex flex-col text-xs">
+                <div className="flex items-center justify-between py-3.5 border-b border-[#121212]">
+                  <span className="text-neutral-400">Database Connection</span>
+                  {debugInfo ? (
+                    debugInfo.dbConnection === "Success" ? (
+                      <span className="text-emerald-400 font-semibold flex items-center gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                        Connected
+                      </span>
+                    ) : (
+                      <span className="text-red-400 font-semibold flex items-center gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-red-500"></span>
+                        Connection Failed
+                      </span>
+                    )
+                  ) : (
+                    <span className="text-neutral-500">Checking...</span>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-between py-3.5 border-b border-[#121212]">
+                  <span className="text-neutral-400">Database URL Configuration</span>
+                  <span className="text-neutral-200 font-semibold">
+                    {debugInfo ? (debugInfo.hasDatabaseUrl ? "Active" : "Missing (Check Vercel Env)") : "Checking..."}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between py-3.5 border-b border-[#121212]">
+                  <span className="text-neutral-400">Gemini LLM Key Status</span>
+                  <span className="text-neutral-200 font-semibold">
+                    {debugInfo ? (debugInfo.hasGeminiKey ? "Connected" : "Offline") : "Checking..."}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between py-3.5">
+                  <span className="text-neutral-400">Database Counters</span>
+                  <span className="text-neutral-300 font-mono text-[11px]">
+                    {debugInfo 
+                      ? `Chats: ${debugInfo.prismaConversationCount ?? 0} | Messages: ${debugInfo.prismaMessageCount ?? 0}`
+                      : "Checking..."}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Data & History controls */}
+            <div className="flex flex-col gap-5">
+              <div className="border-b border-[#1f1f1f] pb-3">
+                <h2 className="text-xs font-bold text-white uppercase tracking-wider">Data Controls</h2>
+                <p className="text-neutral-500 text-[11px] mt-0.5 font-normal">Manage your personal data and conversation history.</p>
+              </div>
+              
+              <div className="flex flex-col text-xs">
+                <div className="flex items-center justify-between py-3.5 border-b border-[#121212]">
+                  <div className="flex flex-col gap-0.5 pr-4">
+                    <span className="text-neutral-200 font-semibold">Delete all data</span>
+                    <span className="text-neutral-500 text-[11px]">Permanently clear your conversations and active keys.</span>
+                  </div>
+                  <button
+                    onClick={() => setShowDeleteDataModal(true)}
+                    className="px-3 py-1.5 rounded-lg border border-[#1f1f1f] hover:border-red-900/60 bg-neutral-900/20 hover:bg-red-950/10 text-neutral-300 hover:text-red-400 font-semibold transition-all active:scale-95 cursor-pointer flex-shrink-0"
+                  >
+                    Delete Data
+                  </button>
+                </div>
+                
+                <div className="flex items-center justify-between py-3.5">
+                  <div className="flex flex-col gap-0.5 pr-4">
+                    <span className="text-neutral-200 font-semibold">Delete account</span>
+                    <span className="text-neutral-500 text-[11px]">Permanently delete your profile and close the account.</span>
+                  </div>
+                  <button
+                    onClick={() => setShowDeleteAccountModal(true)}
+                    className="px-3 py-1.5 rounded-lg border border-red-950/40 hover:border-red-500 bg-red-950/20 hover:bg-red-950/50 text-red-400 font-semibold transition-all active:scale-95 cursor-pointer flex-shrink-0"
+                  >
+                    Delete Account
+                  </button>
+                </div>
+              </div>
+            </div>
+
           </div>
         </div>
 
