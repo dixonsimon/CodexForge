@@ -306,7 +306,7 @@ export default function ChatPage() {
   useEffect(() => {
     const loadConversations = async () => {
       try {
-        const response = await fetch("/api/v1/conversations", { cache: "no-store" });
+        const response = await fetch(`/api/v1/conversations?t=${Date.now()}`, { cache: "no-store" });
         if (response.ok) {
           const data = await response.json();
           setConversations(data);
@@ -324,7 +324,7 @@ export default function ChatPage() {
   const handleSelectConversation = async (id: string) => {
     setActiveConversationId(id);
     try {
-      const response = await fetch(`/api/v1/conversations/${id}`, { cache: "no-store" });
+      const response = await fetch(`/api/v1/conversations/${id}?t=${Date.now()}`, { cache: "no-store" });
       if (response.ok) {
         const data = await response.json();
         const mapped = data.messages.map((m: any) => ({
@@ -434,7 +434,7 @@ export default function ChatPage() {
           body: JSON.stringify({ activeModel: newModel })
         });
 
-        const convResp = await fetch("/api/v1/conversations", { cache: "no-store" });
+        const convResp = await fetch(`/api/v1/conversations?t=${Date.now()}`, { cache: "no-store" });
         if (convResp.ok) {
           const convData = await convResp.json();
           setConversations(convData);
@@ -710,7 +710,7 @@ export default function ChatPage() {
                 if (chunk.conversation_id && chunk.conversation_id !== "default") {
                   if (activeConversationId !== chunk.conversation_id) {
                     setActiveConversationId(chunk.conversation_id);
-                    const convResp = await fetch("/api/v1/conversations", { cache: "no-store" });
+                    const convResp = await fetch(`/api/v1/conversations?t=${Date.now()}`, { cache: "no-store" });
                     if (convResp.ok) {
                       const convData = await convResp.json();
                       setConversations(convData);
