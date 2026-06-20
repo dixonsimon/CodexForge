@@ -54,7 +54,13 @@ const renderFormattedText = (text: string) => {
 
   const lines = text.split("\n");
   let inList = false;
+  let listType: "ul" | "ol" | null = null;
   const listItems: React.ReactNode[] = [];
+  
+  let inCodeBlock = false;
+  let codeBlockLines: string[] = [];
+  let codeBlockLang = "";
+  
   const elements: React.ReactNode[] = [];
 
   const parseInlineElements = (lineText: string, keyPrefix: string) => {
@@ -81,19 +87,43 @@ const renderFormattedText = (text: string) => {
         }
       }
       
-      if (lineText[i] === "*" && lineText[i + 1] === "*") {
-        const nextBold = lineText.indexOf("**", i + 2);
-        if (nextBold !== -1) {
+      const isDoubleAsterisk = lineText[i] === "*" && lineText[i + 1] === "*";
+      const isDoubleUnderscore = lineText[i] === "_" && lineText[i + 1] === "_";
+      if (isDoubleAsterisk || isDoubleUnderscore) {
+        const marker = isDoubleAsterisk ? "**" : "__";
+        const nextMarker = lineText.indexOf(marker, i + 2);
+        if (nextMarker !== -1) {
           if (i > currentIdx) {
             parts.push(lineText.substring(currentIdx, i));
           }
-          const boldContent = lineText.substring(i + 2, nextBold);
+          const boldContent = lineText.substring(i + 2, nextMarker);
           parts.push(
             <strong key={`bold-${keyPrefix}-${i}`} className="font-bold text-white mx-0.5">
               {boldContent}
             </strong>
           );
-          i = nextBold + 2;
+          i = nextMarker + 2;
+          currentIdx = i;
+          continue;
+        }
+      }
+      
+      const isSingleAsterisk = lineText[i] === "*";
+      const isSingleUnderscore = lineText[i] === "_";
+      if (isSingleAsterisk || isSingleUnderscore) {
+        const marker = isSingleAsterisk ? "*" : "_";
+        const nextMarker = lineText.indexOf(marker, i + 1);
+        if (nextMarker !== -1 && nextMarker > i + 1) {
+          if (i > currentIdx) {
+            parts.push(lineText.substring(currentIdx, i));
+          }
+          const italicContent = lineText.substring(i + 1, nextMarker);
+          parts.push(
+            <em key={`italic-${keyPrefix}-${i}`} className="italic text-neutral-200 mx-0.5">
+              {italicContent}
+            </em>
+          );
+          i = nextMarker + 1;
           currentIdx = i;
           continue;
         }
@@ -111,18 +141,70 @@ const renderFormattedText = (text: string) => {
 
   const flushList = (index: number) => {
     if (listItems.length > 0) {
-      elements.push(
-        <ul key={`list-${index}`} className="list-disc pl-5 my-2 flex flex-col gap-1 select-text">
-          {[...listItems]}
-        </ul>
-      );
+      if (listType === "ol") {
+        elements.push(
+          <ol key={`list-${index}`} className="list-decimal pl-5 my-2 flex flex-col gap-1 select-text">
+            {[...listItems]}
+          </ol>
+        );
+      } else {
+        elements.push(
+          <ul key={`list-${index}`} className="list-disc pl-5 my-2 flex flex-col gap-1 select-text">
+            {[...listItems]}
+          </ul>
+        );
+      }
       listItems.length = 0;
       inList = false;
+      listType = null;
     }
   };
 
   lines.forEach((line, index) => {
     const trimmed = line.trim();
+
+    if (trimmed.startsWith("```")) {
+      if (!inCodeBlock) {
+        flushList(index);
+        inCodeBlock = true;
+        codeBlockLang = trimmed.substring(3).trim();
+        codeBlockLines = [];
+      } else {
+        const codeText = codeBlockLines.join("\n");
+        elements.push(
+          <div key={`code-block-${index}`} className="my-4 flex flex-col gap-2 rounded-2xl bg-black border border-[#1f1f1f] overflow-hidden select-none">
+            <div className="flex items-center justify-between px-4 py-2 bg-neutral-900/50 border-b border-[#1f1f1f]">
+              <span className="font-mono text-[10px] text-neutral-400">
+                {codeBlockLang || "code"}
+              </span>
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(codeText);
+                  alert("Copied code to clipboard!");
+                }}
+                className="px-2.5 py-1 rounded-xl bg-neutral-900 hover:bg-neutral-800 text-white font-semibold text-[10px] border border-[#1f1f1f] transition-all cursor-pointer"
+              >
+                Copy Code
+              </button>
+            </div>
+            <pre className="font-mono text-[10px] text-white overflow-x-auto p-4 bg-black/60 leading-relaxed max-h-64 select-text">
+              {codeText}
+            </pre>
+          </div>
+        );
+        inCodeBlock = false;
+        codeBlockLang = "";
+        codeBlockLines = [];
+      }
+      return;
+    }
+
+    if (inCodeBlock) {
+      codeBlockLines.push(line);
+      return;
+    }
+
+    const numMatch = trimmed.match(/^(\d+)\.\s+(.*)/);
 
     if (trimmed.startsWith("### ")) {
       flushList(index);
@@ -146,16 +228,31 @@ const renderFormattedText = (text: string) => {
         </h1>
       );
     } else if (trimmed.startsWith("- ") || trimmed.startsWith("* ")) {
+      if (inList && listType !== "ul") {
+        flushList(index);
+      }
       inList = true;
+      listType = "ul";
       listItems.push(
         <li key={`li-${index}-${listItems.length}`} className="text-neutral-300 leading-relaxed text-xs pl-0.5 select-text">
           {parseInlineElements(trimmed.substring(2), `li-${index}`)}
         </li>
       );
+    } else if (numMatch) {
+      if (inList && listType !== "ol") {
+        flushList(index);
+      }
+      inList = true;
+      listType = "ol";
+      listItems.push(
+        <li key={`li-${index}-${listItems.length}`} className="text-neutral-300 leading-relaxed text-xs pl-0.5 select-text">
+          {parseInlineElements(numMatch[2], `li-${index}`)}
+        </li>
+      );
     } else {
       if (inList && trimmed === "") {
         flushList(index);
-      } else if (inList && !trimmed.startsWith("- ") && !trimmed.startsWith("* ")) {
+      } else if (inList) {
         flushList(index);
         elements.push(
           <p key={`p-${index}`} className="my-1.5 text-xs text-neutral-300 leading-relaxed select-text min-h-[1em] whitespace-pre-wrap">
@@ -171,6 +268,22 @@ const renderFormattedText = (text: string) => {
       }
     }
   });
+
+  if (inCodeBlock && codeBlockLines.length > 0) {
+    const codeText = codeBlockLines.join("\n");
+    elements.push(
+      <div key={`code-block-end`} className="my-4 flex flex-col gap-2 rounded-2xl bg-black border border-[#1f1f1f] overflow-hidden select-none">
+        <div className="flex items-center justify-between px-4 py-2 bg-neutral-900/50 border-b border-[#1f1f1f]">
+          <span className="font-mono text-[10px] text-neutral-400">
+            {codeBlockLang || "code"}
+          </span>
+        </div>
+        <pre className="font-mono text-[10px] text-white overflow-x-auto p-4 bg-black/60 leading-relaxed max-h-64 select-text">
+          {codeText}
+        </pre>
+      </div>
+    );
+  }
 
   flushList(lines.length);
   return elements;
@@ -277,6 +390,7 @@ export default function ChatPage() {
 
   const rawUserName = user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email?.split("@")[0] || "Developer";
   const cleanUserName = rawUserName.split(" ").map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+  const firstName = cleanUserName.split(" ")[0];
 
   const {
     setConversations: setSidebarConversations,
@@ -300,6 +414,27 @@ export default function ChatPage() {
       handleSyncIndex,
     });
   }, [conversations, activeConversationId, isSyncing, syncStatus, selectedMode]);
+
+  const inputRef = useRef<HTMLInputElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  const focusInput = () => {
+    inputRef.current?.focus();
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, isThinking]);
+
+  useEffect(() => {
+    if (!isThinking) {
+      focusInput();
+    }
+  }, [isThinking, activeConversationId]);
 
   // Multi-Agent active step ticker
   useEffect(() => {
@@ -1004,7 +1139,7 @@ export default function ChatPage() {
 
                 {/* Premium Gradient Header */}
                 <h2 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white via-neutral-200 to-neutral-400">
-                  Hello, {cleanUserName}. How can I help you today?
+                  Hello, {firstName}. How can I help you today?
                 </h2>
 
                 <p className="text-neutral-500 text-xs mt-2 max-w-md leading-relaxed">
@@ -1101,6 +1236,7 @@ export default function ChatPage() {
                 </div>
               </div>
             )}
+            <div ref={messagesEndRef} />
           </div>
         </div>
 
@@ -1134,12 +1270,14 @@ export default function ChatPage() {
             className="w-full max-w-2xl bg-[#0e0e0e] border border-[#1f1f1f] rounded-2xl p-2 flex items-center focus-within:border-neutral-750 transition-colors"
           >
             <input
+              ref={inputRef}
               type="text"
               placeholder={`Send a message to CodexForge (${selectedModel})...`}
               value={chatInput}
               onChange={(e) => setChatInput(e.target.value)}
               disabled={isThinking}
               className="flex-1 bg-transparent border-0 outline-none px-4 py-2 text-xs text-white placeholder-neutral-600 disabled:opacity-50"
+              autoFocus
             />
             <button
               type="submit"
