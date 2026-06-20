@@ -21,13 +21,17 @@ This repository has progressed from a design blueprint into a **fully implemente
 - **Enterprise SSO & Audit Logs**: Keycloak-compatible OpenID Connect authentication flow mapped with strict RBAC guards (`SECOPS`, `LEAD_DEVELOPER`) and persistent database security ledgers.
 - **CI/CD PR Reviewer Webhook**: Listens to pull request updates, spins up changed files in an AWS Firecracker VM container, executes safety tests, and posts automated AI reviews back to GitHub.
 
-### 3. ML Training & Agentic Pipelines (`apps/backend-agent`)
+### 3. ML Training & Agentic Pipelines (`apps/backend-agent` & `model/`)
 - **Distributed FSDP Training & DPO**: Scripts for sharded data-parallel training parameters and Direct Preference Optimization preference-margin loss formulas.
 - **Model Merging (SLERP & TIES)**: Clean vector interpolation methods to combine parameter-level weights and resolve conflicting parameter updates.
-- **YaRN Context scaling**: Attention frequency interpolation calculations extending context windows up to 128k sequence lengths.
+- **YaRN Context Scaling**: Attention frequency interpolation calculations extending context windows up to 128k sequence lengths.
 - **Autoregressive Back-Translation Curation**: Synthetic instruction-response generator converting codebase routines back into training prompts.
 - **Mixture of Experts (MoE) Loss**: Gating load loss calculations ($L_{\text{aux}}$) preventing expert collapse during model routing optimization.
 - **System Telemetry**: Local Prometheus GPU metrics exporter exposing memory constraints, latent request loops, and TTFT metrics.
+- **Supervised Fine-Tuning (SFT) Alignment**: Instruction format alignment pipeline mapping prompt/response sequences and calculating cross-entropy loss weights ([sft_alignment.py](file:///c:/Users/Dixon/OneDrive/Documents/LLM/model/training/sft_alignment.py)).
+- **AWS Firecracker VM Pool Allocations**: Sandbox Pool Manager balancing pool sizes, active state slots, and IP resolutions ([sandbox_pool_manager.py](file:///c:/Users/Dixon/OneDrive/Documents/LLM/apps/backend-agent/pipelines/sandbox_pool_manager.py)).
+- **Local Package Mirror Registry**: Offline PyPI/npm mirror cache server whitelisting downloads and resolving library sources offline ([mirror_cache.py](file:///c:/Users/Dixon/OneDrive/Documents/LLM/apps/backend-agent/pipelines/mirror_cache.py)).
+- **Compiler Feedback RLCF Loops**: Reinforcement learning pipeline loop running generated candidate code inside VM slots and utilizing compiler rewards to compute policy loss values ([rlcf_sandbox_loop.py](file:///c:/Users/Dixon/OneDrive/Documents/LLM/apps/backend-agent/pipelines/rlcf_sandbox_loop.py)).
 
 ---
 

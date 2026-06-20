@@ -51,6 +51,8 @@ This document outlines the current feature completion status and lists the pendi
 * **Context Extension via YaRN RoPE Scaling**: Implemented YaRN scaling attention frequency interpolation logic ([yarn_scaling.py](file:///c:/Users/Dixon/OneDrive/Documents/LLM/apps/backend-agent/pipelines/yarn_scaling.py)) to support context sequences up to 128k.
 * **Autoregressive Back-Translation Curation**: Built comment generation synthetic data scripts ([back_translation.py](file:///c:/Users/Dixon/OneDrive/Documents/LLM/apps/backend-agent/pipelines/back_translation.py)) translating raw functional code into structured instruction datasets.
 * **Collaborative Organization Resource Allocation**: Created NestJS team credit management controllers enabling managers to set hard limits on GPU tokens and sandbox execution time per member.
+* **Pre-Training & SFT Alignment Execution**: Implemented standard SFT model alignment training simulation script ([sft_alignment.py](file:///c:/Users/Dixon/OneDrive/Documents/LLM/model/training/sft_alignment.py)) processing custom instruction formats and computing cross-entropy token predictions loss.
+* **Large-Scale Sandbox Pool Escalation**: Implemented pre-warmed guest VM slot allocator ([sandbox_pool_manager.py](file:///c:/Users/Dixon/OneDrive/Documents/LLM/apps/backend-agent/pipelines/sandbox_pool_manager.py)), local PyPI/npm offline mirror proxy cache ([mirror_cache.py](file:///c:/Users/Dixon/OneDrive/Documents/LLM/apps/backend-agent/pipelines/mirror_cache.py)), and complete compiler feedback reinforcement loop ([rlcf_sandbox_loop.py](file:///c:/Users/Dixon/OneDrive/Documents/LLM/apps/backend-agent/pipelines/rlcf_sandbox_loop.py)) applying policy gradients.
 
 ---
 
