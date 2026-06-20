@@ -274,20 +274,20 @@ export async function POST(req: Request) {
     if (modelToUse === 'CodexForge-MoE') {
       if (geminiKey) {
         provider = 'gemini';
-        modelToUse = 'gemini-1.5-flash';
+        modelToUse = 'gemini-3.5-flash';
         keyToUse = geminiKey;
       } else if (openAIKey) {
         provider = 'openai';
-        modelToUse = 'gpt-4o-mini';
+        modelToUse = 'gpt-5.4-mini-2026-03-17';
         keyToUse = openAIKey;
       } else {
         keyMissingWarning = `⚠️ [API Key Missing]: No Gemini or OpenAI API credentials configured for your CodexForge MoE model. Please configure your keys in the "API Keys" page.\n\n`;
         provider = 'mock';
       }
-    } else if (cleanModel === 'gpt-4o' || cleanModel.includes('chatgpt') || cleanModel === 'openai') {
+    } else if (cleanModel.includes('gpt') || cleanModel.includes('chatgpt') || cleanModel === 'openai') {
       if (openAIKey) {
         provider = 'openai';
-        modelToUse = 'gpt-4o-mini';
+        modelToUse = 'gpt-5.4-mini-2026-03-17';
         keyToUse = openAIKey;
       } else {
         keyMissingWarning = `⚠️ [API Key Missing]: OpenAI API key is not configured. Please add it in "API Keys" page.\n\n`;
@@ -296,7 +296,7 @@ export async function POST(req: Request) {
     } else if (cleanModel === 'gemini-3.5-flash' || cleanModel.includes('gemini')) {
       if (geminiKey) {
         provider = 'gemini';
-        modelToUse = 'gemini-1.5-flash';
+        modelToUse = 'gemini-3.5-flash';
         keyToUse = geminiKey;
       } else {
         keyMissingWarning = `⚠️ [API Key Missing]: Gemini API key is not configured. Please add it in "API Keys" page.\n\n`;
@@ -305,7 +305,7 @@ export async function POST(req: Request) {
     } else if (cleanModel.includes('claude') || cleanModel.includes('anthropic')) {
       if (anthropicKey) {
         provider = 'anthropic';
-        modelToUse = 'claude-3-5-sonnet-20241022';
+        modelToUse = 'claude-haiku-4-5-20251001';
         keyToUse = anthropicKey;
       } else {
         keyMissingWarning = `⚠️ [API Key Missing]: Anthropic Claude API key is not configured. Please add it in "API Keys" page.\n\n`;
@@ -340,11 +340,11 @@ export async function POST(req: Request) {
         // Fallback
         if (geminiKey) {
           provider = 'gemini';
-          modelToUse = 'gemini-1.5-flash';
+          modelToUse = 'gemini-3.5-flash';
           keyToUse = geminiKey;
         } else if (openAIKey) {
           provider = 'openai';
-          modelToUse = 'gpt-4o-mini';
+          modelToUse = 'gpt-5.4-mini-2026-03-17';
           keyToUse = openAIKey;
         } else {
           provider = 'mock';

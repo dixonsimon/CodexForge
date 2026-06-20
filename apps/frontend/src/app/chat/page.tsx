@@ -338,9 +338,9 @@ export default function ChatPage() {
 
   const baseModels = [
     { id: "CodexForge-MoE", name: "CodexForge MoE (Default)" },
-    { id: "gpt-4o", name: "ChatGPT (gpt-4o)" },
+    { id: "gpt-5.4-mini-2026-03-17", name: "ChatGPT (gpt-5.4-mini)" },
     { id: "gemini-3.5-flash", name: "Gemini (gemini-3.5-flash)" },
-    { id: "claude-3-5-sonnet", name: "Anthropic Claude (claude-3.5-sonnet)" },
+    { id: "claude-haiku-4-5-20251001", name: "Anthropic Claude (claude-haiku-4.5)" },
     { id: "deepseek-chat", name: "DeepSeek Coder" }
   ];
 
